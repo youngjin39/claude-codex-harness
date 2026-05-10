@@ -145,7 +145,40 @@ Everything else is convention. You can rename `tasks/` to `state/`, drop `docs/p
 
 This template is opinionated about one specific thing: **enforcement**. It exists because advisory rules in markdown — "please don't push to main", "remember to write tests" — are read by AI agents the same way humans read EULAs. Rules need to be code that runs, not text that gets glanced at.
 
-If you want a more general Claude Code starter (skills + memory but no enforcement gates), look at the original [Claude Code Prompt Harness](https://github.com/anthropics/claude-code) inspiration tree. If you want a multi-agent runtime, look at frameworks like Archon or OpenHarness. This template sits earlier in the stack: a clean playbook two CLIs can both follow.
+The AI tooling ecosystem has many adjacent projects. Most pick a different point on the spectrum from "completely loose" to "fully managed runtime". Here is where this one sits.
+
+| Project | What it gives you | What it does NOT enforce | Where this template differs |
+|---|---|---|---|
+| [Claude Code](https://docs.claude.com/en/docs/claude-code) (default) | a CLI to ask questions and edit files; configurable hooks | nothing by default — every gate is opt-in | this template ships a curated default gate set so a fresh repo is enforced from day one |
+| [Codex CLI](https://github.com/openai/codex) (default) | a CLI with sandboxing and an 8-event hook surface | also no defaults — sandbox is the only protection out of the box | this template wires the same scripts into both CLIs so policy stays unified across tools |
+| [`anthropics/superpowers`](https://github.com/anthropics/superpowers) | a curated skill set + memory pattern for Claude Code | no shell deny list, no TDD ledger, no commit-time gates | this template adds the gate layer; you can layer skills from here on top |
+| [`coleam00/Archon`](https://github.com/coleam00/Archon) | a managed multi-agent runtime with a UI | not file-only — it is a service you run | this template is text and shell scripts; no daemon, no port to expose |
+| OpenHarness-style frameworks | full agent orchestration with planners, executors, schedulers | the harness IS the runtime — high lock-in | this template is a playbook two off-the-shelf CLIs follow; rip it out and your project still works |
+| [`claude-code-skills`](https://github.com/anthropics/claude-code-skills) repos | reusable skill bodies and prompt patterns | no hook integration — skills run on the agent's good faith | this template makes skills first-class but keeps enforcement separate (in the hooks) so skill quality and enforcement quality are independent levers |
+| Hand-rolled CLAUDE.md / AGENTS.md | a wishlist for the agent | nothing — it is text the agent might or might not follow | this template promotes the wishlist into shell scripts that fail closed |
+
+### The unique slice
+
+Specifically, this template is the only one in the table above that:
+
+1. **Wires both Claude Code and Codex CLI to the same hook scripts**, so when you fix a deny-list pattern it fixes both CLIs without a copy.
+2. **Gates implementation edits behind a typed TDD ledger** (`tasks/tdd.json`), not a free-form list. The 12-category matrix is the contract.
+3. **Treats hook bypass attempts (e.g. `--no-verify`) as deny-list patterns themselves**, so the gate cannot be lifted by inviting the agent to lift it.
+4. **Ships in a form you can rip out**. There is no runtime, no service, no schema migration. Delete `.claude/`, `.codex/`, `.ai-harness/`, and your repo behaves like a normal repo again.
+
+### When this template is the wrong fit
+
+- You need a single-agent setup with no enforcement (use Claude Code default).
+- You want a managed multi-agent platform (use Archon, autoGPT family, etc.).
+- Your project does not have a TDD culture and cannot adopt one — the gates here will fight you the whole way.
+- You need cross-language hooks beyond shell (the hook scripts are bash; rewriting in PowerShell is non-trivial).
+
+### When this template fits well
+
+- A repo where you run both Claude Code and Codex CLI and want them to stay coherent.
+- A team where "please don't" notes have failed before.
+- A project that can express its TDD plan in 12 categories before each change.
+- A solo developer who wants the Saturday-morning AI-edit session to not destroy Friday-night's work.
 
 ---
 

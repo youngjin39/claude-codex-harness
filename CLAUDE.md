@@ -41,6 +41,9 @@ Skills load on demand. Each skill body is at `.claude/skills/<name>/SKILL.md`. T
 | testing | test, TDD, unit test, integration test |
 | code-review | review, PR, quality, merge check |
 | verification | verify, done check, proof, self-check |
+| deep-interview | interview, requirements, clarify, ambiguous |
+| git-commit | commit, git, save changes |
+| project-doctor | diagnose, doctor, health check, status |
 
 Add your own under `.claude/skills/<name>/SKILL.md`. Each skill's frontmatter must include a `Trigger:` line so the loader knows when to pull it in.
 

@@ -12,8 +12,9 @@ isolation.
 ## Index
 
 - [`add-feature/`](add-feature/) — design → plan → ledger → implement → review → commit, end-to-end on a tiny feature.
-- [`fix-bug/`](fix-bug/) — bug-fix workflow with a regression test.
-- [`refactor/`](refactor/) — refactor workflow that keeps behavior identical.
+- [`fix-bug/`](fix-bug/) — bug-fix workflow with regression test, including a "not a bug" triage path.
+- [`refactor/`](refactor/) — refactor workflow that keeps behavior identical, with the `compatibility` ledger row as the gate.
+- [`multi-round-review/`](multi-round-review/) — adversarial review pattern for non-trivial changes: N parallel reviewers, prioritized fixes, separate verifier.
 
 ## Add your own
 
