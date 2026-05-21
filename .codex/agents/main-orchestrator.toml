@@ -56,7 +56,7 @@ See CLAUDE.md "Orchestration Presets" table (single source of truth).
 
 ## Sub-agent dispatch policy
 
-See CLAUDE.md "Role Policy (Mir Profile)" and AGENTS.md `mir:profile:role-policy` block for the binding policy contract. This section covers the per-agent declarative surface introduced by ADR-09.
+See CLAUDE.md "Role Policy (Template Profile)" and AGENTS.md `template:profile:role-policy` block for the binding policy contract. This section covers the per-agent declarative surface introduced by ADR-09.
 
 - Code work is always delegated to a sub-agent. The orchestrator does not Edit/Write production code directly.
 - Default sub-agent for code/TDD/review: `executor-agent` (frontmatter `execution_backend: codex`). Codex CLI is the code/TDD/review lane.

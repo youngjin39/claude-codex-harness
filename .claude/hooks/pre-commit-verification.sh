@@ -147,10 +147,10 @@ main() {
   else
     default_test="echo skip-test-no-code-py-changes"
   fi
-  lint_cmd="${MIR_PRE_COMMIT_LINT:-$default_lint}"
-  typecheck_cmd="${MIR_PRE_COMMIT_TYPECHECK:-$default_typecheck}"
-  test_cmd="${MIR_PRE_COMMIT_TEST:-$default_test}"
-  build_cmd="${MIR_PRE_COMMIT_BUILD:-}"
+  lint_cmd="${HARNESS_PRE_COMMIT_LINT:-$default_lint}"
+  typecheck_cmd="${HARNESS_PRE_COMMIT_TYPECHECK:-$default_typecheck}"
+  test_cmd="${HARNESS_PRE_COMMIT_TEST:-$default_test}"
+  build_cmd="${HARNESS_PRE_COMMIT_BUILD:-}"
 
   local tdd_cmd idx
   idx=1

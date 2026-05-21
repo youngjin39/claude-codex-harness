@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Mir Repository Agent Management Registry",
+  "title": "Claude-Codex Harness Agent Management Registry",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -98,7 +98,7 @@
       "items": {
         "$ref": "#/$defs/repository"
       },
-      "description": "Inline family entries. May be replaced by per-family files in repositories_dir per ADR-15 v3.6. When repositories_dir is set, this field must be absent. Public template starts empty \u2014 minItems=0 (Mir private fleet sets minItems=15)."
+      "description": "Inline family entries. May be replaced by per-family files in repositories_dir per ADR-15 v3.6. When repositories_dir is set, this field must be absent. Public template starts empty \u2014 minItems=0; private deployments may raise minItems for their fleet."
     },
     "repositories_dir": {
       "type": "string",
@@ -175,7 +175,7 @@
           },
           "commit": {
             "type": "string",
-            "description": "Optional Mir commit SHA reference."
+            "description": "Optional upstream harness commit SHA reference."
           }
         }
       },
@@ -274,7 +274,7 @@
           "type": "string",
           "enum": [
             "self-hosted",
-            "mir-managed",
+            "harness-managed",
             "bounded-managed",
             "sealed-reference"
           ]
@@ -623,7 +623,7 @@
           "type": "string",
           "enum": [
             "self-hosted",
-            "mir-managed",
+            "harness-managed",
             "bounded-managed",
             "sealed-reference"
           ]

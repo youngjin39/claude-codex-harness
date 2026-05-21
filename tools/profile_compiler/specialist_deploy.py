@@ -5,12 +5,12 @@ ADR-16 P16-A.
 Public API
 ----------
 compute_normalized_sha256(path) -> str
-get_mir_root() -> Path
-get_mir_head_commit() -> str
-is_mir_dirty(slug) -> bool
+get_harness_root() -> Path
+get_harness_head_commit() -> str
+is_harness_dirty(slug) -> bool
 load_ledger(family_root) -> dict
 write_ledger(family_root, ledger) -> None
-classify_drift(ledger_entry, mir_source_path, deployed_path) -> str
+classify_drift(ledger_entry, harness_source_path, deployed_path) -> str
 refresh_specialists(family_root, slugs, *, apply=False, dry_run=True) -> dict
 SpecialistDeployError(Exception)
 """
@@ -42,7 +42,7 @@ CANONICAL_SPECIALIST_SLUGS: list[str] = [
     "template-sync-validator",
 ]
 
-# Universal agent slugs (ADR-09 §S4) that are deployed to ALL families, not just Mir.
+# Universal agent slugs (ADR-09 §S4) that are deployed to ALL families.
 UNIVERSAL_SLUGS: list[str] = [
     "main-orchestrator",
     "executor-agent",
@@ -71,7 +71,7 @@ def compute_normalized_sha256(path: Path) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def get_mir_root() -> Path:
+def get_harness_root() -> Path:
     """Return the host repo root (where this harness is installed).
 
     Resolved as Path(__file__).resolve().parents[2]:
@@ -83,11 +83,11 @@ def get_mir_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def get_mir_head_commit() -> str:
-    """Return the current HEAD commit SHA of the Mir repo."""
-    mir_root = get_mir_root()
+def get_harness_head_commit() -> str:
+    """Return the current HEAD commit SHA of the harness repo."""
+    harness_root = get_harness_root()
     result = subprocess.run(
-        ["git", "-C", str(mir_root), "rev-parse", "HEAD"],
+        ["git", "-C", str(harness_root), "rev-parse", "HEAD"],
         capture_output=True,
         text=True,
         check=True,
@@ -95,12 +95,12 @@ def get_mir_head_commit() -> str:
     return result.stdout.strip()
 
 
-def is_mir_dirty(slug: str) -> bool:
-    """Return True if the specialist .md file has uncommitted changes in Mir."""
-    mir_root = get_mir_root()
+def is_harness_dirty(slug: str) -> bool:
+    """Return True if the specialist .md file has uncommitted changes in the harness repo."""
+    harness_root = get_harness_root()
     rel_path = f".claude/agents/{slug}.md"
     result = subprocess.run(
-        ["git", "-C", str(mir_root), "diff", "--quiet", rel_path],
+        ["git", "-C", str(harness_root), "diff", "--quiet", rel_path],
         capture_output=True,
     )
     # exit 0 = clean, exit 1 = dirty
@@ -141,16 +141,16 @@ def write_ledger(family_root: Path, ledger: dict) -> None:
 
 def classify_drift(
     ledger_entry: dict | None,
-    mir_source_path: Path,
+    harness_source_path: Path,
     deployed_path: Path,
 ) -> str:
     """Return drift status string.
 
-    Returns one of: "new" | "in_sync" | "family_modified" | "mir_updated" | "both_diverged"
+    Returns one of: "new" | "in_sync" | "family_modified" | "harness_updated" | "both_diverged"
 
     Algorithm:
     - No ledger entry: "new".
-    - Compute current sha256 of both mir_source_path and deployed_path (if deployed exists).
+    - Compute current sha256 of both harness_source_path and deployed_path (if deployed exists).
     - Compare against ledger recorded source_sha256 / deployed_sha256.
     """
     if ledger_entry is None:
@@ -159,7 +159,7 @@ def classify_drift(
     recorded_source_sha = ledger_entry.get("source_sha256", "")
     recorded_deployed_sha = ledger_entry.get("deployed_sha256", "")
 
-    current_source_sha = compute_normalized_sha256(mir_source_path) if mir_source_path.exists() else ""
+    current_source_sha = compute_normalized_sha256(harness_source_path) if harness_source_path.exists() else ""
     current_deployed_sha = compute_normalized_sha256(deployed_path) if deployed_path.exists() else ""
 
     source_changed = current_source_sha != recorded_source_sha
@@ -170,38 +170,38 @@ def classify_drift(
     if not source_changed and deployed_changed:
         return "family_modified"
     if source_changed and not deployed_changed:
-        return "mir_updated"
+        return "harness_updated"
     # both changed
     return "both_diverged"
 
 
 def print_three_way_diff(
     slug: str,
-    mir_root: Path,
+    harness_root: Path,
     family_root: Path,
     ledger_entry: dict | None,
 ) -> None:
     """Print three-way diff for a slug to stdout.
 
-    Side A: Mir HEAD content (git show HEAD:.claude/agents/<slug>.md).
+    Side A: Harness HEAD content (git show HEAD:.claude/agents/<slug>.md).
     Side B: family-local current content.
     Side C: ledger-baseline content (git show <source_commit>:.claude/agents/<slug>.md).
     """
     rel = f".claude/agents/{slug}.md"
     family_path = family_root / rel
 
-    # Side A: Mir HEAD
+    # Side A: Harness HEAD
     result_a = subprocess.run(
-        ["git", "-C", str(mir_root), "show", f"HEAD:{rel}"],
+        ["git", "-C", str(harness_root), "show", f"HEAD:{rel}"],
         capture_output=True,
         text=True,
     )
     if result_a.returncode != 0:
-        mir_lines: list[str] = []
-        mir_label = f"<unreachable: Mir HEAD:{rel}>"
+        harness_lines: list[str] = []
+        harness_label = f"<unreachable: Harness HEAD:{rel}>"
     else:
-        mir_lines = result_a.stdout.splitlines(keepends=True)
-        mir_label = f"Mir HEAD:{rel}"
+        harness_lines = result_a.stdout.splitlines(keepends=True)
+        harness_label = f"Harness HEAD:{rel}"
 
     # Side B: family-local current
     if family_path.exists():
@@ -215,7 +215,7 @@ def print_three_way_diff(
     source_commit = (ledger_entry or {}).get("source_commit", "")
     if source_commit:
         result_c = subprocess.run(
-            ["git", "-C", str(mir_root), "show", f"{source_commit}:{rel}"],
+            ["git", "-C", str(harness_root), "show", f"{source_commit}:{rel}"],
             capture_output=True,
             text=True,
         )
@@ -229,18 +229,18 @@ def print_three_way_diff(
         baseline_lines = []
         baseline_label = "<no ledger entry>"
 
-    print("=== Mir HEAD vs family-local ===")
+    print("=== Harness HEAD vs family-local ===")
     diff_ab = list(difflib.unified_diff(
-        mir_lines, family_lines, fromfile=mir_label, tofile=family_label
+        harness_lines, family_lines, fromfile=harness_label, tofile=family_label
     ))
     if diff_ab:
         print("".join(diff_ab), end="")
     else:
         print("(no diff)")
 
-    print("=== Mir HEAD vs ledger-baseline ===")
+    print("=== Harness HEAD vs ledger-baseline ===")
     diff_ac = list(difflib.unified_diff(
-        mir_lines, baseline_lines, fromfile=mir_label, tofile=baseline_label
+        harness_lines, baseline_lines, fromfile=harness_label, tofile=baseline_label
     ))
     if diff_ac:
         print("".join(diff_ac), end="")
@@ -248,13 +248,13 @@ def print_three_way_diff(
         print("(no diff)")
 
 
-def write_harness_config(family_root: Path, family_slug: str, mir_root: Path) -> None:
+def write_harness_config(family_root: Path, family_slug: str, harness_root: Path) -> None:
     """Write/update <family-root>/.mir/harness-config.json as a sync copy of the central catalog config/repos/<family_slug>.json entry.
 
     Phase C — each repository carries its own harness JSON synced from the central catalog.
     """
     try:
-        catalog = load_catalog(mir_root)
+        catalog = load_catalog(harness_root)
     except FileNotFoundError:
         return
 
@@ -267,7 +267,7 @@ def write_harness_config(family_root: Path, family_slug: str, mir_root: Path) ->
     if entry is None:
         return
 
-    mir_head = get_mir_head_commit()
+    harness_head = get_harness_head_commit()
     now_utc = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     catalog_revision = "v3.6"
     catalog_version = catalog.get("version", 2)
@@ -278,7 +278,7 @@ def write_harness_config(family_root: Path, family_slug: str, mir_root: Path) ->
         "catalog_version": catalog_version,
         "catalog_revision": catalog_revision,
         "last_synced_from_upstream_at": now_utc,
-        "last_synced_upstream_commit": mir_head,
+        "last_synced_upstream_commit": harness_head,
         "repository_type": entry.get("repository_type"),
         "overlay_archetype": entry.get("overlay_archetype"),
         "orchestration_profile": entry.get("orchestration_profile"),
@@ -329,7 +329,7 @@ def refresh_specialists(
     slugs:
         List of specialist slugs to process.
     apply:
-        If True, copy files and update ledger. Requires clean Mir working tree
+        If True, copy files and update ledger. Requires clean harness working tree
         for each slug.
     dry_run:
         If True (default), do not write any files. Returns would-copy/conflict info.
@@ -344,31 +344,31 @@ def refresh_specialists(
             "--apply, --diff, --accept-family are mutually exclusive"
         )
 
-    mir_root = get_mir_root()
+    harness_root = get_harness_root()
     ledger = load_ledger(family_root)
     report: dict[str, Any] = {}
     ledger_dirty: bool = False
 
     for slug in slugs:
-        source_path = mir_root / ".claude" / "agents" / f"{slug}.md"
+        source_path = harness_root / ".claude" / "agents" / f"{slug}.md"
         deployed_path = family_root / ".claude" / "agents" / f"{slug}.md"
 
         if not source_path.exists():
             report[slug] = {
                 "action": "error",
                 "drift_status": "missing_source",
-                "error": f"Mir source not found: {source_path}",
+                "error": f"Harness source not found: {source_path}",
             }
-            raise SpecialistDeployError(f"Mir source not found for slug '{slug}': {source_path}")
+            raise SpecialistDeployError(f"Harness source not found for slug '{slug}': {source_path}")
 
         ledger_entry = ledger["specialists"].get(slug)
         drift_status = classify_drift(ledger_entry, source_path, deployed_path)
         source_sha = compute_normalized_sha256(source_path)
 
         if diff:
-            if drift_status in ("mir_updated", "both_diverged"):
+            if drift_status in ("harness_updated", "both_diverged"):
                 ledger_entry_for_diff = ledger["specialists"].get(slug)
-                print_three_way_diff(slug, mir_root, family_root, ledger_entry_for_diff)
+                print_three_way_diff(slug, harness_root, family_root, ledger_entry_for_diff)
             report[slug] = {
                 "action": "diff",
                 "drift_status": drift_status,
@@ -390,7 +390,7 @@ def refresh_specialists(
             deployed_sha = (
                 compute_normalized_sha256(deployed_path) if deployed_path.exists() else ""
             )
-            source_commit = get_mir_head_commit()
+            source_commit = get_harness_head_commit()
             now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             ledger["specialists"][slug] = {
                 "source_path": f".claude/agents/{slug}.md",
@@ -411,10 +411,10 @@ def refresh_specialists(
             continue
 
         if apply:
-            # Abort if Mir working tree is dirty for this file
-            if is_mir_dirty(slug):
+            # Abort if harness working tree is dirty for this file
+            if is_harness_dirty(slug):
                 raise SpecialistDeployError(
-                    f"Mir working tree is dirty for '{slug}'. Commit or stash before deploying.",
+                    f"Harness working tree is dirty for '{slug}'. Commit or stash before deploying.",
                 )
 
             # Idempotent skip on in_sync
@@ -447,7 +447,7 @@ def refresh_specialists(
             shutil.copy2(str(source_path), str(deployed_path))
 
             deployed_sha = compute_normalized_sha256(deployed_path)
-            source_commit = get_mir_head_commit()
+            source_commit = get_harness_head_commit()
             now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
             ledger["specialists"][slug] = {
@@ -485,7 +485,7 @@ def refresh_specialists(
         write_ledger(family_root, ledger)
 
     if apply and family_slug is not None:
-        mir_root = get_mir_root()
-        write_harness_config(family_root, family_slug, mir_root)
+        harness_root = get_harness_root()
+        write_harness_config(family_root, family_slug, harness_root)
 
     return report

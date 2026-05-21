@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: "Code review and quality check.\n\nTrigger: review, PR, quality, merge check, post-completion"
+description: "Code review and quality check.\n\nTrigger: code review, PR, quality, merge check, post-completion\n\nNote: \"architecture review\" routes to bluebricks (not this skill); use the compound trigger \"code review\" to disambiguate."
 context: fork
 allowed-tools: Read, Grep, Glob, Bash
 ---
@@ -97,7 +97,7 @@ Multi-reviewer dispatch can be skipped iff **all** of the following hold:
 
 When Track 1 fires: state explicitly `"Trivial Pass Track 1 — docs/typo only, multi-reviewer skipped"` in the verdict and proceed straight to `Sound`. Ambiguous = not trivial.
 
-Track 2 (workflow body / skill body) is **not supported** in Mir; the harness lacks the `workflows/llm_driven/` or `skills/library/` substrate the upstream review-gate.md (v2.9.23) defines that track over.
+Track 2 (workflow body / skill body) is **not supported** in this harness; the substrate (`workflows/llm_driven/` or `skills/library/`) that upstream review-gate.md (v2.9.23) defines that track over is not present here.
 
 ## Checklist
 - [ ] Error handling (missing try/catch, unhandled promises)

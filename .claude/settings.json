@@ -8,7 +8,7 @@
             "type": "command",
             "command": ".claude/hooks/pre-tool-use.sh",
             "timeout": 30,
-            "statusMessage": "Mir L2 PreToolUse"
+            "statusMessage": "Harness L2 PreToolUse"
           }
         ]
       },
@@ -19,7 +19,7 @@
             "type": "command",
             "command": ".claude/hooks/pre-merge-gate.sh",
             "timeout": 30,
-            "statusMessage": "Mir pre-merge gate"
+            "statusMessage": "Harness pre-merge gate"
           }
         ]
       }
@@ -32,7 +32,7 @@
             "type": "command",
             "command": ".claude/hooks/post-edit-check.sh",
             "timeout": 30,
-            "statusMessage": "Mir post-edit check"
+            "statusMessage": "Harness post-edit check"
           },
           {
             "type": "command",
@@ -51,7 +51,7 @@
             "type": "command",
             "command": ".claude/hooks/pre-tool-use.sh",
             "timeout": 30,
-            "statusMessage": "Mir L2 PermissionRequest"
+            "statusMessage": "Harness L2 PermissionRequest"
           }
         ]
       }
@@ -63,7 +63,7 @@
             "type": "command",
             "command": ".claude/hooks/session-start.sh",
             "timeout": 30,
-            "statusMessage": "Mir session-start"
+            "statusMessage": "Harness session-start"
           }
         ]
       }
@@ -75,7 +75,7 @@
             "type": "command",
             "command": ".claude/hooks/tdd-task-created.sh",
             "timeout": 30,
-            "statusMessage": "Mir TDD guard (task creation gate)"
+            "statusMessage": "Harness TDD guard (task creation gate)"
           }
         ]
       }
@@ -87,7 +87,7 @@
             "type": "command",
             "command": ".claude/hooks/tdd-task-completed.sh",
             "timeout": 30,
-            "statusMessage": "Mir TDD completion gate"
+            "statusMessage": "Harness TDD completion gate"
           }
         ]
       }
@@ -99,7 +99,7 @@
             "type": "command",
             "command": ".claude/hooks/mir-stop.sh",
             "timeout": 30,
-            "statusMessage": "Mir Stop audit"
+            "statusMessage": "Harness Stop audit"
           }
         ]
       }
@@ -111,7 +111,7 @@
             "type": "command",
             "command": ".claude/hooks/stop-failure-audit.sh",
             "timeout": 30,
-            "statusMessage": "Mir StopFailure audit"
+            "statusMessage": "Harness StopFailure audit"
           }
         ]
       }
@@ -123,7 +123,7 @@
             "type": "command",
             "command": ".claude/hooks/pre-compact.sh",
             "timeout": 60,
-            "statusMessage": "Mir PreCompact checkpoint"
+            "statusMessage": "Harness PreCompact checkpoint"
           }
         ]
       }

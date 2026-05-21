@@ -490,7 +490,7 @@
     },
     "learning_low_code": {
       "description": "Learning-heavy repository with managed agent contract and relatively small code surface.",
-      "default_management_mode": "mir-managed",
+      "default_management_mode": "harness-managed",
       "default_agent_topology": "claude-control-plus-codex-execution",
       "tracked_paths": {
         "central_ownership_contract": [
@@ -554,7 +554,7 @@
     },
     "code_app": {
       "description": "Standard code-focused repository with full managed agent contract.",
-      "default_management_mode": "mir-managed",
+      "default_management_mode": "harness-managed",
       "default_agent_topology": "claude-control-plus-codex-execution",
       "tracked_paths": {
         "central_ownership_contract": [
@@ -619,7 +619,7 @@
     },
     "hybrid_pipeline": {
       "description": "Data pipeline or hybrid code+pipeline repository with managed agent contract.",
-      "default_management_mode": "mir-managed",
+      "default_management_mode": "harness-managed",
       "default_agent_topology": "claude-control-plus-codex-execution",
       "tracked_paths": {
         "central_ownership_contract": [
@@ -684,7 +684,7 @@
     },
     "infra_runtime": {
       "description": "Infrastructure or runtime repository with strict contract enforcement.",
-      "default_management_mode": "mir-managed",
+      "default_management_mode": "harness-managed",
       "default_agent_topology": "claude-control-plus-codex-execution",
       "tracked_paths": {
         "central_ownership_contract": [
@@ -808,7 +808,7 @@
     },
     "ontology_content": {
       "description": "Content-first repository with bounded Codex usage and stronger non-code management memory.",
-      "default_management_mode": "mir-managed",
+      "default_management_mode": "harness-managed",
       "default_agent_topology": "claude-control-plus-codex-bounded",
       "tracked_paths": {
         "central_ownership_contract": [
@@ -876,8 +876,8 @@
       }
     },
     "command_memory_heavy_app": {
-      "description": "Code repository with heavier command and memory surfaces that still stays Mir-managed.",
-      "default_management_mode": "mir-managed",
+      "description": "Code repository with heavier command and memory surfaces that managed by this harness.",
+      "default_management_mode": "harness-managed",
       "default_agent_topology": "claude-control-plus-codex-execution",
       "tracked_paths": {
         "central_ownership_contract": [
