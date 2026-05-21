@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verifier for config/repo-agent-management.json.
 
-Adapted from the Mir Harness private verifier for the Claude+Codex Harness Template.
+Verifier for the Claude+Codex Harness Template.
 Runs the general-purpose checks (schema, catalog drift, template pack cross-ref,
 R10 scope_patterns, R11 dispatch log, R12 repos-dir integrity).
 

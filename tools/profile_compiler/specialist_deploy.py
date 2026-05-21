@@ -1,4 +1,4 @@
-"""Specialist agent deployment — Mir master → family repository.
+"""Specialist agent deployment — host repo → family repository.
 
 ADR-16 P16-A.
 
@@ -72,18 +72,13 @@ def compute_normalized_sha256(path: Path) -> str:
 
 
 def get_mir_root() -> Path:
-    """Return the Mir Harness repo root.
+    """Return the host repo root (where this harness is installed).
 
-    Resolved as Path(__file__).resolve().parents[3]:
-    tools/profile_compiler/specialist_deploy.py -> tools/profile_compiler -> tools -> repo_root
-    That is parents[2], not parents[3].  Let us be explicit:
+    Resolved as Path(__file__).resolve().parents[2]:
       __file__ = <root>/tools/profile_compiler/specialist_deploy.py
       .parents[0] = <root>/tools/profile_compiler
       .parents[1] = <root>/tools
       .parents[2] = <root>
-    ADR-16 §S2a says parents[3] for 'the tools/profile_compiler/ package path → up 3 to repo root'
-    but tools/profile_compiler is already 2 levels under root (root/tools/profile_compiler),
-    so parents[2] is correct.  We use parents[2] and document this.
     """
     return Path(__file__).resolve().parents[2]
 
@@ -254,11 +249,9 @@ def print_three_way_diff(
 
 
 def write_harness_config(family_root: Path, family_slug: str, mir_root: Path) -> None:
-    """Write/update <family-root>/.mir/harness-config.json as a sync
-    copy of Mir-side config/repos/<family_slug>.json entry.
+    """Write/update <family-root>/.mir/harness-config.json as a sync copy of the central catalog config/repos/<family_slug>.json entry.
 
-    Phase C of user Discord 1507032746957213847 Deliverable 2 -
-    each repository carries its own harness JSON synced from Mir.
+    Phase C — each repository carries its own harness JSON synced from the central catalog.
     """
     try:
         catalog = load_catalog(mir_root)
@@ -280,7 +273,7 @@ def write_harness_config(family_root: Path, family_slug: str, mir_root: Path) ->
     catalog_version = catalog.get("version", 2)
 
     payload = {
-        "$schema": "https://schemas.mir-harness.local/harness-config-v1.json",
+        "$schema": "https://schemas.example.local/harness-config-v1.json",
         "version": 1,
         "family_slug": family_slug,
         "mir_catalog_version": catalog_version,
@@ -297,9 +290,9 @@ def write_harness_config(family_root: Path, family_slug: str, mir_root: Path) ->
         "rationale": entry.get("rationale", ""),
         "last_reviewed_at": entry.get("last_reviewed_at", ""),
         "notes": [
-            "Local sync copy of Mir-side config/repos/<family_slug>.json.",
+            "Local sync copy of central catalog config/repos/<family_slug>.json.",
             (
-                "Source of truth: Mir Harness checkout config/repos/<family_slug>.json. "
+                "Source of truth: host repo config/repos/<family_slug>.json. "
                 "This file MAY be locally edited; Mir refresh treats one-way push "
                 "(Mir -> family) per ADR-16 S6 WN-5."
             ),
@@ -328,7 +321,7 @@ def refresh_specialists(
     accept_family: bool = False,
     family_slug: str | None = None,
 ) -> dict[str, Any]:
-    """Deploy specialist .md files from Mir master to a family repository.
+    """Deploy specialist .md files from the host repo to a family repository.
 
     Parameters
     ----------

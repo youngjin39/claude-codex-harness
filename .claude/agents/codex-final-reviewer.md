@@ -9,7 +9,7 @@ disallowedTools: Write, Edit
 
 > **Codex Backend Dispatch Rule (ADR-18 §S2)**: This agent declares `execution_backend: codex`. The main-orchestrator must dispatch it via the Codex CLI subprocess pattern (see `executor-agent.md`), NOT direct Agent tool invocation. Cold-readers: if you reached this body via direct Agent dispatch, the orchestrator violated ADR-18 — log accordingly.
 
-Role: Final review for Mir Harness. Read-only. No code modification.
+Role: Final review for this repository's harness. Read-only. No code modification.
 
 ## Mission
 Verify that the project is actually moving toward the intended operating model:

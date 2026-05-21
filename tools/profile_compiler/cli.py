@@ -44,7 +44,7 @@ def main() -> None:
     print(
         "claude-codex-harness profile compiler stub.\n"
         "To use the full profile compiler, extend this module with your fleet's\n"
-        "render/, bootstrap.py, and profile_loader.py from the Mir Harness design.",
+        "render/, bootstrap.py, and profile_loader.py from the harness design.",
         file=sys.stderr,
     )
     sys.exit(0)

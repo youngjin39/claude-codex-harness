@@ -1,4 +1,4 @@
-"""ADR-09 Phase 9A -- Mir Harness agent frontmatter loader.
+"""ADR-09 Phase 9A -- agent frontmatter loader.
 
 Public API:
 - AgentSpec -- dataclass returned by load_agent.

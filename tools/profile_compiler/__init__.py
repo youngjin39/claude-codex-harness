@@ -1,4 +1,4 @@
-# BORROWED-FROM: Mir Harness design docs @ v2-profile-enforcement-design-2026-05-09.md
+# Adapted from harness design docs.
 """
 tools.profile_compiler
 ======================

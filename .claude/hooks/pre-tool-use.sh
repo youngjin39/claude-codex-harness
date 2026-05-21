@@ -166,9 +166,16 @@ if [ "$TOOL_NAME" = "Write" ] || [ "$TOOL_NAME" = "Edit" ]; then
 fi
 
 # mir:profile:enforcement:begin
-# --- Mir profile-driven enforcement (V2.1) ---
+# --- Harness profile-driven enforcement (V2.1) ---
+_get_family_slug() {
+    local cfg="$PROJECT_DIR/.mir/harness-config.json"
+    if [ -f "$cfg" ]; then
+        python3 -c "import json,sys; print(json.load(open('$cfg')).get('family_slug', ''))" 2>/dev/null || true
+    fi
+}
 if [ "${MIR_FAMILY_CODE_PATHS_INITIALIZED:-no}" != "yes" ]; then
-    MIR_FAMILY_SLUG="mir-harness"
+    _slug="$(_get_family_slug)"
+    MIR_FAMILY_SLUG="${_slug:-$(basename "$PROJECT_DIR")}"
     MIR_FAMILY_CODE_PATHS=( "tools/" "src/" )
     MIR_CODEX_DEFAULT_ENABLED="true"
     MIR_FAMILY_CODE_PATHS_INITIALIZED=yes
@@ -200,12 +207,12 @@ print("yes" if any(_match(c, p) for c in candidates for p in patterns) else "no"
 PY
 )"
         if [ "$_mir_match" = "yes" ] && [ -z "${MIR_CODEX_SESSION_ID:-}" ]; then
-            echo "[mir BLOCKED] code-path edit on $_mir_file_path requires an active Codex session. Run scripts/spawn_codex_session.sh first." >&2
+            echo "[$MIR_FAMILY_SLUG BLOCKED] code-path edit on $_mir_file_path requires an active Codex session. Run scripts/spawn_codex_session.sh first." >&2
             exit 2
         fi
     fi
 fi
-# --- end Mir profile-driven enforcement (V2.1) ---
+# --- end harness profile-driven enforcement (V2.1) ---
 
 # mir:profile:enforcement:end
 

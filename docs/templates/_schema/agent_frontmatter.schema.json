@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mir Harness agent frontmatter schema (ADR-09 C2)",
+  "description": "Frontmatter contract for .claude/agents/*.md. Phase 9B atomic: execution_backend is required. lenient mode in loader.py drops execution_backend from required for migration scripts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "description", "model", "execution_backend"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Lower-case kebab-case identifier. Matched by Agent tool subagent_type."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free text. May include multi-line Examples block."
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Anthropic model alias or version-locked ID (e.g., 'opus', 'sonnet', 'haiku', or 'claude-opus-4-7'). Claude Code validates the value itself."
+    },
+    "context": {
+      "type": "string",
+      "enum": ["fork"],
+      "description": "Optional. Single value enum today. Schema bump required if Claude Code adds new values."
+    },
+    "disallowedTools": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z]+(,\\s*[A-Z][A-Za-z]+)*$",
+      "description": "Optional. Comma-separated PascalCase tool names (e.g., 'Write, Edit')."
+    },
+    "execution_backend": {
+      "type": "string",
+      "enum": ["claude", "codex"],
+      "description": "ADR-09: which CLI executes the agent's work. 'claude' = direct Claude session. 'codex' = Codex CLI subprocess dispatch."
+    }
+  }
+}

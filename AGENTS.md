@@ -79,6 +79,22 @@ Empty categories are a code smell. The 12 categories exist because most reviewer
 
 You produce a finding, not a workaround. Send it back to Claude with severity, evidence, and a recommendation. The plan author owns the resolution.
 
+## Subagent Resource Management
+- Default live subagent cap = 2. Raise it only when Claude/Codex lanes are clearly independent and the current lane is healthy.
+- Prefer `fork_context: false` for bounded harness docs, config, or verifier work. Use `fork_context: true` only for broad role-policy review, runtime-contract review, or independent final verification.
+- Close completed, timed-out, or errored subagents before the next wave so experiments do not leave stale lanes open.
+- If `spawn_agent` returns capacity or thread-limit errors, stop parallel expansion, reduce ownership to one harness surface per subagent, retry one subagent at a time, and record degraded mode in the active plan or handoff.
+
+## Hook Policy Boundary
+- **Enforcement domain** — Hook-strict:
+  - `tools/`, `src/`, `lib/` code paths: Claude direct Edit/Write is blocked by `.claude/hooks/pre-tool-use.sh`. Changes must go through the Codex execution lane.
+  - Pre-commit lint / typecheck / test (`pre-commit-verification.sh`): auto-enforced on code changes.
+  - TDD ledger (`tdd-guard.sh`): implementation-before-test pattern is blocked.
+- **Advisory domain** — Hook-loose / non-enforced:
+  - `.claude/agents/`, `.claude/skills/`, `config/repo-agent-management.json`, `docs/`, `tasks/`: direct edits allowed. Verifier (`scripts/verify_repo_agent_management.py`) emits advisory WARN/INFO only.
+  - Monthly catalog review cadence: no cron, no auto-fire. fleet-doc-steward surfaces reminders to `tasks/checklist.md`.
+- **Principle**: Core design (catalog / skill / agent / orchestration) must not depend on hooks for correctness. Hooks add (a) TDD enforcement on code surfaces, (b) Codex execution lane routing, and (c) verification automation.
+
 ## Role Policy (Template Profile)
 
 <!-- template:profile:role-policy:begin -->
