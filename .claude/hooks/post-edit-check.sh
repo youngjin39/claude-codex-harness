@@ -1,54 +1,73 @@
 #!/bin/bash
-# post-edit-check.sh
-# Reads tool_input from stdin (JSON) after an Edit / Write / apply_patch.
-# Soft warnings only — never blocks the edit, just surfaces concerns.
-
-set -u
+# PostToolUse hook for Edit|Write: debug statements + credential leak detection
+# Reads tool_input from stdin (JSON)
 
 INPUT=$(cat)
 
+block() {
+  echo "[PostToolUse BLOCK] $1" >&2
+  exit 2
+}
+
 require_jq() {
-  command -v jq >/dev/null 2>&1 || exit 0
+  if ! command -v jq >/dev/null 2>&1; then
+    block "jq is required for PostToolUse parsing"
+  fi
+}
+
+extract_json() {
+  local filter="$1"
+  local value
+  if ! value=$(printf '%s' "$INPUT" | jq -er "$filter" 2>/dev/null); then
+    return 1
+  fi
+  printf '%s' "$value"
 }
 
 require_jq
+FILE_PATH="$(extract_json '.tool_input.file_path // .tool_input.path')" || exit 0
 
-FP=$(printf '%s' "$INPUT" | jq -er '.tool_input.file_path // .tool_input.path' 2>/dev/null) || exit 0
-[ -n "$FP" ] && [ -f "$FP" ] || exit 0
+if [ -z "$FILE_PATH" ] || [ ! -f "$FILE_PATH" ]; then
+  exit 0
+fi
 
-# Skip checks on test files and non-source extensions.
-case "$FP" in
-  *test_*|*_test*|*.test.*) exit 0 ;;
-esac
+EXT="${FILE_PATH##*.}"
+WARNINGS=""
 
-EXT="${FP##*.}"
-
-# ---- Debug-statement scan ----
+# 1. Debug statement check (capture output, don't leak to stdout)
 case "$EXT" in
-  js|ts|jsx|tsx|mjs|cjs)
-    HITS=$(grep -nE "\bconsole\.(log|debug|trace)\b" "$FP" 2>/dev/null | head -3)
-    [ -n "$HITS" ] && echo "[PostEdit warn] debug statements in $FP:" >&2 && echo "$HITS" >&2
+  js|ts|jsx|tsx)
+    DEBUG_HITS=$(grep -n "console\.log" "$FILE_PATH" 2>/dev/null | head -3)
+    if [ -n "$DEBUG_HITS" ]; then
+      WARNINGS="[WARNING] console.log detected in $FILE_PATH
+$DEBUG_HITS"
+    fi
     ;;
   py)
-    HITS=$(grep -nE "(^|[^a-zA-Z_])print\(|breakpoint\(\)|pdb\." "$FP" 2>/dev/null | head -3)
-    [ -n "$HITS" ] && echo "[PostEdit warn] debug statements in $FP:" >&2 && echo "$HITS" >&2
-    ;;
-  go)
-    HITS=$(grep -nE "fmt\.Print|log\.Print|println\(" "$FP" 2>/dev/null | head -3)
-    [ -n "$HITS" ] && echo "[PostEdit warn] debug statements in $FP:" >&2 && echo "$HITS" >&2
-    ;;
-  rb)
-    HITS=$(grep -nE "puts |binding\.pry|byebug" "$FP" 2>/dev/null | head -3)
-    [ -n "$HITS" ] && echo "[PostEdit warn] debug statements in $FP:" >&2 && echo "$HITS" >&2
+    DEBUG_HITS=$(grep -n "^\s*print(" "$FILE_PATH" 2>/dev/null | grep -v "# keep" | head -3)
+    if [ -n "$DEBUG_HITS" ]; then
+      WARNINGS="[WARNING] print() detected in $FILE_PATH
+$DEBUG_HITS"
+    fi
     ;;
 esac
 
-# ---- Credential-shape scan ----
-# Patterns chosen to catch the obvious cases without flagging every base64 string.
-CREDS=$(grep -nE "(AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}\\.)" "$FP" 2>/dev/null | head -3)
-if [ -n "$CREDS" ]; then
-  echo "[PostEdit WARN] credential-shaped strings in $FP — verify before committing:" >&2
-  echo "$CREDS" >&2
+# 2. Credential leak check (20+ char after sk- to avoid false positives)
+# Patterns: sk-{20+ alphanum/hyphen} (OpenAI/Anthropic), ghp_/gho_ (GitHub),
+#           AIza (Google), xoxb- (Slack), AKIA (AWS), aws_secret_access_key
+case "$EXT" in
+  md|json|yaml|yml|sh|ts|js|py|env|toml|cfg)
+    CRED_HITS=$(grep -nE '(sk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AIza[a-zA-Z0-9_-]{35}|xoxb-[0-9]{10,}|AKIA[A-Z0-9]{16}|aws_secret_access_key[[:space:]]*=)' "$FILE_PATH" 2>/dev/null | head -3)
+    if [ -n "$CRED_HITS" ]; then
+      WARNINGS="${WARNINGS:+$WARNINGS
+}[CRITICAL] Possible credential/API key detected in $FILE_PATH — rotate immediately if real:
+$CRED_HITS"
+    fi
+    ;;
+esac
+
+if [ -n "$WARNINGS" ]; then
+  echo "$WARNINGS"
 fi
 
 exit 0

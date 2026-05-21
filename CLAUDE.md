@@ -1,90 +1,103 @@
-# Workspace rules — Claude Code side
+# Claude+Codex Harness Template — Opinionated Claude Code Starter
 
-This file is read by Claude Code on every session. AGENTS.md mirrors it for Codex CLI.
+## Required Reads
+- `tasks/plan.md`
+- `tasks/lessons.md`
+- `docs/memory-map.md`
+- `docs/decisions/role-policy.md`
 
-## Role policy
+## Build & Run
+- Starter-only configuration. Update commands when a concrete code product is added.
 
-Two CLIs, two lanes:
+## AI Development Harness
+- Non-code tasks follow `.ai-harness/common-ai-rules.md` and `.ai-harness/session-closeout.md`.
+- Code-writing, debugging, refactoring, architecture review, repository exploration, and test generation must load `bluebricks` first.
+- Code-development safeguards live in `.ai-harness/development-ai-rules.md`, `.ai-harness/bluebricks.md`, `.ai-harness/tdd-matrix.md`, `.ai-harness/deny-list.yaml`, and `.ai-harness/failure-patterns.md`.
+- Code-development proof rule: design first, then maintain `tasks/tdd.json`, then implementation, then executed TDD evidence as the primary proof of correctness.
 
-| Lane | Default CLI | Responsibilities |
-|---|---|---|
-| Control plane | Claude Code | conversation, requirements clarification, architecture, planning, dispatch, exception handling, final merge judgment |
-| Execution plane | Codex CLI | code writing, code modification, composite TDD execution, deterministic pass/fail verification, code review |
+## Project Structure
+- Root control files: `CLAUDE.md`, `AGENTS.md`, `.mcp.json`, `setup.sh`, `README.md`
+- Harness rules: `.ai-harness/`
+- Runtime source: `.claude/`
+- Working state: `tasks/`
+- Long-term memory: `docs/`
 
-Default = Claude controls, Codex executes. The default flips only when:
-- the user explicitly requests it,
-- Codex is unavailable or fails the task after defined retries,
-- the task is documented as non-code or docs-only.
+## Workflow
+- 0 specificity signals: load `design` skill (interview subtype).
+- Simple non-code work: execute directly + self-check.
+- Simple code task: Claude triage/control, Codex execution + TDD + review.
+- Complex 3+ step work: `design` → Codex execution lane → Codex review lane → `verify`.
+- Use `ui-design` before any real UI work.
+- `automation` is the default for long-running or restartable work.
+- Sub-agent contracts must stay pinned by regression tests.
 
-Any runtime override must be recorded in `tasks/plan.md` or the active handoff note with a one-line reason.
+## Subagent Resource Management
+- Default live subagent cap = 2. Raise it only when Claude/Codex lanes are clearly independent and the current lane is healthy.
+- Prefer `fork_context: false` for bounded harness docs, config, or verifier work. Use `fork_context: true` only for broad role-policy review, runtime-contract review, or independent final verification.
+- Close completed, timed-out, or errored subagents before the next wave so experiments do not leave stale lanes open.
+- If `spawn_agent` returns capacity or thread-limit errors, stop parallel expansion, reduce ownership to one harness surface per subagent, retry one subagent at a time, and record degraded mode in the active plan or handoff.
 
-If you find yourself wanting a long-term policy change (e.g. you ran code-only tasks for a week and Claude has handled them faster than Codex), revise the policy itself in `docs/decisions/role-policy.md` and update this file. Do not let one-off overrides stack into an unwritten convention.
+## Hook Policy Boundary
+- **Enforcement domain** — Hook-strict:
+  - `tools/`, `src/`, `lib/` code paths: Claude direct Edit/Write is blocked by `.claude/hooks/pre-tool-use.sh`. Changes must go through the Codex execution lane.
+  - Pre-commit lint / typecheck / test (`pre-commit-verification.sh`): auto-enforced on code changes.
+  - TDD ledger (`tdd-guard.sh`): implementation-before-test pattern is blocked.
+- **Advisory domain** — Hook-loose / non-enforced:
+  - `.claude/agents/`, `.claude/skills/`, `config/repo-agent-management.json`, `docs/`, `tasks/`: direct edits allowed. Verifier (`scripts/verify_repo_agent_management.py`) emits advisory WARN/INFO only.
+  - Monthly catalog review cadence: no cron, no auto-fire. fleet-doc-steward surfaces reminders to `tasks/checklist.md`.
+- **Principle**: Core design (catalog / skill / agent / orchestration) must not depend on hooks for correctness. Hooks add (a) TDD enforcement on code surfaces, (b) Codex execution lane routing, and (c) verification automation. Hook enforcement must not leak into core design execution.
 
-## Workflow pipeline
+## Runtime Role Policy
+- Claude default: requirements clarification, architecture, design approval, orchestration, planning, dispatch, exception handling, final merge judgment.
+- Codex default: code writing, code modification, composite TDD execution, deterministic verification, and code review.
+- Runtime role swap is conditional, not symmetric by default.
+- Record every runtime override in `tasks/plan.md` or the active handoff note.
+- Project-level policy revision is a separate path.
+- Long-term policy changes must update `docs/decisions/role-policy.md`, this file, and its regressions together.
 
-```
-Request
-  ├─ no specificity signals?            → deep-interview
-  ├─ simple non-code (1–2 steps)        → execute directly → self-check → done
-  ├─ simple code task                    → Claude triage → Codex executes + TDD + review → verification → done
-  └─ complex (3+ steps)                  → brainstorming → writing-plans → Codex execute → Codex review → verification → done
-```
+## Language Protocol
+- User-facing output: match your team's language convention.
+- Internal docs, code, commits, and handoffs: English.
+- Keep progress updates short and scannable.
 
-## Skill triggers
+## Surgical Change Rules
+- Do not touch code outside the requested scope.
+- Do not improve adjacent code or formatting without need.
+- Do not refactor working code unless requested.
+- Report dead code; do not delete it without instruction.
+- No speculative abstractions or impossible-case error handling.
 
-Skills load on demand. Each skill body is at `.claude/skills/<name>/SKILL.md`. Triggers are listed below; loading is automatic when the request matches.
+## Principles
+- Default is no-action without evidence.
+- Simplicity first.
+- Fix root causes.
+- Explicit prohibitions beat vague guidance.
+- No filler.
 
-| Skill | Loads when the request mentions |
+## Role Policy (Template Profile)
+
+<!-- template:profile:role-policy:begin -->
+<!-- This block is generated by the profile compiler when you register a family.
+     Edit .mir/repo-profile.toml and rerun scripts/generate_codex_derivatives.sh to update. -->
+
+### Template Harness — Role Policy
+
+| Field | Value |
 |---|---|
-| design | design, brainstorm, architecture, new feature |
-| writing-plans | plan, implementation plan, step design |
-| testing | test, TDD, unit test, integration test |
-| code-review | review, PR, quality, merge check |
-| verification | verify, done check, proof, self-check |
-| deep-interview | interview, requirements, clarify, ambiguous |
-| git-commit | commit, git, save changes |
-| project-doctor | diagnose, doctor, health check, status |
+| Repository type | template_transitional |
+| Rollout class | bootstrap_only |
+| Claude role | control_plane |
+| Codex role | execution_plane |
+| Codex default enabled | true |
+| Codex allowed modes | implementation, review, verification |
+| Codex blocked modes | repo_rewrite |
+| Review scope | .claude/**, .ai-harness/**, docs/**, tasks/**, scripts/** |
+| TDD scope | scripts/** |
 
-Add your own under `.claude/skills/<name>/SKILL.md`. Each skill's frontmatter must include a `Trigger:` line so the loader knows when to pull it in.
+**Claude** is the control plane: conversation, architecture, planning, dispatch, exception handling, and final merge judgment.
 
-## Gates
+**Codex** is the default execution lane for code writing, TDD, deterministic verification, and code review.
 
-Hard rules enforced by hooks in `.claude/hooks/` — not advisory.
+A runtime role swap requires an explicit recorded override in the active plan or handoff note.
 
-- **PreToolUse(Bash | Edit | Write)** denies destructive shell patterns and writes to protected paths. The deny list lives at `.ai-harness/deny-list.yaml`.
-- **TDD-guard** blocks edits to implementation files (`src/`, `app/`, `lib/`) unless `tasks/tdd.json` has a `change` entry whose `targets` array lists the file.
-- **PreCommitVerification** blocks `git commit` until every category in the matching ledger entry is `pass`, `covered_existing`, or `not_applicable` (with a `reason`).
-- **PostToolUse(Edit | Write)** scans the changed file for debug statements and credential-shaped strings. Soft warning only — does not block.
-- **SessionStart** auto-loads `tasks/plan.md`, `tasks/lessons.md`, and the most recent session snapshot from `tasks/sessions/`.
-- **PreCompact** writes a handoff stub to `tasks/handoffs/auto-<timestamp>.md` so the next session resumes cleanly.
-- **SessionEnd** saves a session snapshot to `tasks/sessions/`.
-
-If you need to bypass a gate, you must write the override into `tasks/plan.md` first. The hook does not verify the override exists, but reviewers will.
-
-## Memory model
-
-Three layers, cleanest possible.
-
-1. **`docs/`** — long-term memory. Permanent. Indexed by `docs/memory-map.md` (keyword → file mapping). Load on demand.
-2. **`tasks/lessons.md`** — behavioral rules promoted from repeated patterns. Two same-shape failures or successes earns a row.
-3. **`tasks/sessions/`** — session snapshots. Most recent only is canonical; older ones get promoted to `docs/` or deleted.
-
-The hook auto-loads layers 2 and 3 at session start. Layer 1 is loaded only when the keyword index says it is relevant to the current task.
-
-## Tone and structure
-
-- User-facing output: concise. Bullet points over paragraphs. Labels (`Result`, `Discussion`) over flowing prose.
-- Internal output (other agents, docs, code): English. Token-efficient.
-- No filler ("Sure!", "Great question!", "I hope this helps!"). Every sentence should carry information.
-- When a fact is corrected, the correction is the new ground truth. Do not revert.
-
-## Surgical change rules
-
-- Touch only what was asked. Do not improve adjacent code, comments, or formatting.
-- No speculative abstractions for single-use cases. Three similar lines beat a premature helper.
-- No backwards-compatibility shims unless an external consumer relies on the old surface.
-- No error handling for impossible cases. Trust internal code and framework guarantees.
-
-## Default is no-action
-
-If you do not have evidence, you do not have a conclusion. State of the art for AI tools is producing confident-sounding text from no signal — fight that here. When uncertain, run the test, read the file, ask the user. When still uncertain, say so.
+<!-- template:profile:role-policy:end -->

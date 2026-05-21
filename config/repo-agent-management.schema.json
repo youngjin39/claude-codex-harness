@@ -1,0 +1,786 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mir Repository Agent Management Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "purpose",
+    "management_domains",
+    "templates"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1
+    },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_cadence",
+        "agents",
+        "skills"
+      ],
+      "properties": {
+        "review_cadence": {
+          "type": "string",
+          "enum": [
+            "monthly_user_directed"
+          ]
+        },
+        "agents": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/catalog_agent"
+          }
+        },
+        "skills": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/catalog_skill"
+          }
+        }
+      }
+    },
+    "management_domains": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "central_ownership_contract",
+        "repository_overlay",
+        "generation_verification_pipeline",
+        "operating_contract",
+        "harness_structure",
+        "harness_format",
+        "agent_management"
+      ],
+      "properties": {
+        "central_ownership_contract": {
+          "$ref": "#/$defs/domain"
+        },
+        "repository_overlay": {
+          "$ref": "#/$defs/domain"
+        },
+        "generation_verification_pipeline": {
+          "$ref": "#/$defs/domain"
+        },
+        "operating_contract": {
+          "$ref": "#/$defs/domain"
+        },
+        "harness_structure": {
+          "$ref": "#/$defs/domain"
+        },
+        "harness_format": {
+          "$ref": "#/$defs/domain"
+        },
+        "agent_management": {
+          "$ref": "#/$defs/domain"
+        }
+      }
+    },
+    "templates": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/template"
+      }
+    },
+    "repositories": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/$defs/repository"
+      },
+      "description": "Inline family entries. May be replaced by per-family files in repositories_dir per ADR-15 v3.6. When repositories_dir is set, this field must be absent. Public template starts empty \u2014 minItems=0 (Mir private fleet sets minItems=15)."
+    },
+    "repositories_dir": {
+      "type": "string",
+      "description": "Relative path to directory containing per-family JSON files (config/repos/). When set, repositories[] in the root file is ignored and the directory is glob-loaded instead. ADR-15 v3.6 per-family split."
+    },
+    "hook_policy": {
+      "type": "object",
+      "description": "Catalog-level Hook policy enforcement vs advisory boundary summary. Pointer to CLAUDE.md Hook Policy Boundary section. ADR-15 S5 + architecture audit 2026-05-21 H1.",
+      "additionalProperties": false,
+      "properties": {
+        "enforcement_domain": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Path globs / surface names where Hook strictness applies (e.g., tools/, src/, pre-commit, tdd-guard)."
+        },
+        "advisory_domain": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Path globs / surface names where Hook is observation-only."
+        },
+        "doc_pointer": {
+          "type": "string",
+          "description": "Relative path or anchor in CLAUDE.md / ADR pointing at the canonical policy text."
+        }
+      }
+    },
+    "claude_codex_compatibility": {
+      "type": "object",
+      "description": "Catalog-level Claude+Codex coexistence policy summary. ADR-15 + ADR-18 + claude-codex-role-policy-2026-05-02.md.",
+      "additionalProperties": false,
+      "properties": {
+        "claude_only_responsibilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "codex_only_responsibilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "runtime_override_path": {
+          "type": "string",
+          "description": "Where runtime role swaps are recorded."
+        },
+        "doc_pointer": {
+          "type": "string"
+        }
+      }
+    },
+    "change_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date",
+          "summary"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "commit": {
+            "type": "string",
+            "description": "Optional Mir commit SHA reference."
+          }
+        }
+      },
+      "description": "Catalog-level change log. Optional \u2014 ADR revision history is the primary source; this is a lightweight catalog-side summary."
+    }
+  },
+  "$defs": {
+    "domain_name": {
+      "type": "string",
+      "enum": [
+        "central_ownership_contract",
+        "repository_overlay",
+        "generation_verification_pipeline",
+        "operating_contract",
+        "harness_structure",
+        "harness_format",
+        "agent_management"
+      ]
+    },
+    "string_list": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "memory_focus"
+      ],
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "memory_focus": {
+          "$ref": "#/$defs/string_list"
+        }
+      }
+    },
+    "tracked_paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "central_ownership_contract",
+        "repository_overlay",
+        "generation_verification_pipeline",
+        "operating_contract",
+        "harness_structure",
+        "harness_format",
+        "agent_management"
+      ],
+      "properties": {
+        "central_ownership_contract": {
+          "$ref": "#/$defs/string_list"
+        },
+        "repository_overlay": {
+          "$ref": "#/$defs/string_list"
+        },
+        "generation_verification_pipeline": {
+          "$ref": "#/$defs/string_list"
+        },
+        "operating_contract": {
+          "$ref": "#/$defs/string_list"
+        },
+        "harness_structure": {
+          "$ref": "#/$defs/string_list"
+        },
+        "harness_format": {
+          "$ref": "#/$defs/string_list"
+        },
+        "agent_management": {
+          "$ref": "#/$defs/string_list"
+        }
+      }
+    },
+    "template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "default_management_mode",
+        "default_agent_topology",
+        "tracked_paths",
+        "default_verification"
+      ],
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default_management_mode": {
+          "type": "string",
+          "enum": [
+            "self-hosted",
+            "mir-managed",
+            "bounded-managed",
+            "sealed-reference"
+          ]
+        },
+        "default_agent_topology": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tracked_paths": {
+          "$ref": "#/$defs/tracked_paths"
+        },
+        "default_verification": {
+          "$ref": "#/$defs/string_list"
+        },
+        "default_agent_pack": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "orchestrator": {
+              "type": "string"
+            },
+            "executor": {
+              "type": "string"
+            },
+            "reviewers": {
+              "$ref": "#/$defs/string_list"
+            },
+            "specialists": {
+              "$ref": "#/$defs/string_list"
+            }
+          }
+        },
+        "default_skill_pack": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "core": {
+              "$ref": "#/$defs/string_list"
+            },
+            "code": {
+              "$ref": "#/$defs/string_list"
+            },
+            "domain": {
+              "$ref": "#/$defs/string_list"
+            }
+          }
+        }
+      }
+    },
+    "catalog_agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "execution_backend",
+        "scope",
+        "status",
+        "source_path",
+        "notes"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "control_plane/execution: required universal; review: universal review tier (override-removal forbidden); specialist: family-specific (override-removable); governance: meta_harness only.",
+          "enum": [
+            "control_plane",
+            "execution",
+            "review",
+            "specialist",
+            "governance"
+          ]
+        },
+        "execution_backend": {
+          "type": "string",
+          "enum": [
+            "claude",
+            "codex"
+          ]
+        },
+        "scope": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "proposed",
+            "external",
+            "archived"
+          ]
+        },
+        "source_path": {
+          "type": "string"
+        },
+        "notes": {
+          "$ref": "#/$defs/string_list"
+        },
+        "scope_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "fnmatch glob patterns (relative to family root) that this agent's fork context is filtered to. Optional. Default ['**/*'] (no filtering)."
+        },
+        "recommended_skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Skill slugs the agent is most likely to invoke. Advisory only \u2014 not enforced. Per audit P3-2 (agent \u2192 skill direct mapping)."
+        }
+      }
+    },
+    "catalog_skill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "absorbs",
+        "scope",
+        "status",
+        "source_path"
+      ],
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": [
+            "design",
+            "verify",
+            "code-review",
+            "testing",
+            "ui-design",
+            "governance",
+            "knowledge",
+            "automation",
+            "efficiency",
+            "bluebricks",
+            "commit"
+          ]
+        },
+        "absorbs": {
+          "$ref": "#/$defs/string_list"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "proposed",
+            "consolidated",
+            "external",
+            "archived"
+          ]
+        },
+        "source_path": {
+          "type": "string"
+        }
+      }
+    },
+    "profile_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "live-profile",
+            "example-profile",
+            "survey-doc"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "fleet_management": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_target",
+        "control_repo",
+        "runtime_contract_exception",
+        "diet_mode"
+      ],
+      "properties": {
+        "active_target": {
+          "type": "boolean"
+        },
+        "control_repo": {
+          "type": "boolean"
+        },
+        "runtime_contract_exception": {
+          "type": "boolean"
+        },
+        "diet_mode": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "exclude_generic_bulk_diet",
+            "reference_only"
+          ]
+        }
+      }
+    },
+    "exception_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requires_repo_specific_runtime_review",
+        "protected_categories"
+      ],
+      "properties": {
+        "requires_repo_specific_runtime_review": {
+          "type": "boolean"
+        },
+        "protected_categories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "runtime_contract",
+              "review_only_operational_docs",
+              "generated_or_derived_surfaces",
+              "public-template-license-surface"
+            ]
+          }
+        }
+      }
+    },
+    "evidence_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_documents",
+        "open_questions",
+        "assumptions"
+      ],
+      "properties": {
+        "source_documents": {
+          "$ref": "#/$defs/string_list"
+        },
+        "open_questions": {
+          "$ref": "#/$defs/string_list"
+        },
+        "assumptions": {
+          "$ref": "#/$defs/string_list"
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slug",
+        "display_name",
+        "registry_path",
+        "profile_slug",
+        "repository_type",
+        "rollout_class",
+        "overlay_archetype",
+        "status",
+        "management_template_id",
+        "management_mode",
+        "profile_source",
+        "managed_domains",
+        "fleet_management",
+        "exception_review",
+        "evidence_trace",
+        "notes"
+      ],
+      "properties": {
+        "slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "registry_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profile_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repository_type": {
+          "type": "string",
+          "enum": [
+            "code_app",
+            "hybrid_pipeline",
+            "content_workspace",
+            "infra_runtime",
+            "learning_workspace",
+            "template_transitional",
+            "meta_harness"
+          ]
+        },
+        "rollout_class": {
+          "type": "string",
+          "enum": [
+            "immediate_migrate",
+            "partial_migrate",
+            "skip_migrate_codex_active",
+            "bootstrap_only",
+            "supersede"
+          ]
+        },
+        "overlay_archetype": {
+          "type": "string",
+          "enum": [
+            "learning_low_code",
+            "code_app",
+            "hybrid_pipeline",
+            "ontology_content",
+            "command_memory_heavy_app",
+            "infra_runtime",
+            "template_transitional",
+            "meta_harness"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "needs_work",
+            "suspended",
+            "sealed",
+            "transitional"
+          ]
+        },
+        "management_template_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "management_mode": {
+          "type": "string",
+          "enum": [
+            "self-hosted",
+            "mir-managed",
+            "bounded-managed",
+            "sealed-reference"
+          ]
+        },
+        "profile_source": {
+          "$ref": "#/$defs/profile_source"
+        },
+        "managed_domains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/domain_name"
+          },
+          "minItems": 7,
+          "uniqueItems": true
+        },
+        "fleet_management": {
+          "$ref": "#/$defs/fleet_management"
+        },
+        "exception_review": {
+          "$ref": "#/$defs/exception_review"
+        },
+        "evidence_trace": {
+          "$ref": "#/$defs/evidence_trace"
+        },
+        "notes": {
+          "$ref": "#/$defs/string_list"
+        },
+        "active_agents": {
+          "$ref": "#/$defs/string_list"
+        },
+        "active_skills": {
+          "$ref": "#/$defs/string_list"
+        },
+        "agent_overrides": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "add_specialists": {
+              "$ref": "#/$defs/string_list"
+            },
+            "remove_specialists": {
+              "$ref": "#/$defs/string_list"
+            },
+            "scope_patterns_overrides": {
+              "type": "object",
+              "description": "Per-specialist scope_patterns full-replacement override at L3. Keys = specialist slug. ADR-17 \u00a7S3.",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "skill_overrides": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "add": {
+              "$ref": "#/$defs/string_list"
+            },
+            "remove": {
+              "$ref": "#/$defs/string_list"
+            }
+          }
+        },
+        "orchestration_profile": {
+          "type": "string",
+          "enum": [
+            "standard",
+            "bounded",
+            "minimal"
+          ]
+        },
+        "hook_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Per-family Hook policy override or summary. Optional.",
+          "properties": {
+            "enforcement_domain": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "advisory_domain": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "deviates_from_catalog": {
+              "type": "boolean",
+              "description": "True if this family policy deviates from the catalog-level hook_policy."
+            }
+          }
+        },
+        "context_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Per-family context-management policy. Optional.",
+          "properties": {
+            "max_skills_active": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "auto_dispatch_specialists": {
+              "type": "boolean"
+            },
+            "fork_default": {
+              "type": "string",
+              "enum": [
+                "fork",
+                "no_fork"
+              ]
+            }
+          }
+        },
+        "token_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Per-family token-budget policy. Optional. Aligned with fleet_observe token axis.",
+          "properties": {
+            "monthly_budget_estimate_usd": {
+              "type": "number",
+              "minimum": 0
+            },
+            "cache_hit_rate_target": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "scope_routing_enabled": {
+              "type": "boolean",
+              "description": "Whether ADR-17 scope_patterns routing is active for this family."
+            }
+          }
+        },
+        "disabled_skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Per-family explicitly disabled skill slugs. Distinct from skill_overrides.remove; disabled_skills suppresses even if added by active_skills. Optional."
+        },
+        "last_reviewed_at": {
+          "type": "string",
+          "format": "date",
+          "description": "Date the family entry was last reviewed by fleet-doc-steward or equivalent. Optional. ADR-15 S5 monthly cadence."
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Free-form per-family rationale for the current active_agents / active_skills / orchestration_profile choices. Optional."
+        }
+      }
+    }
+  }
+}

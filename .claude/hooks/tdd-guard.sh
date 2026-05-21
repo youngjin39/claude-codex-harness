@@ -1,50 +1,53 @@
 #!/bin/bash
-# tdd-guard.sh
-# Block edits to implementation files (src/, app/, lib/ + recognized
-# source extensions) unless tasks/tdd.json has a `change` entry whose
-# `targets` array contains the path. Called by pre-tool-use.sh.
+# TDD guard helper: block implementation edits when no composite TDD plan is present.
 
-set -u
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
+TARGET_PATH="${1:-}"
+TDD_MATRIX_GUARD_SCRIPT="$PROJECT_DIR/.claude/hooks/tdd-matrix-guard.py"
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
-LEDGER="$PROJECT_DIR/tasks/tdd.json"
-TARGET="${1:-}"
+normalize_path() {
+  local path="$1"
+  path="${path#./}"
+  if [[ "$path" == "$PROJECT_DIR/"* ]]; then
+    path="${path#"$PROJECT_DIR"/}"
+  fi
+  printf '%s' "$path"
+}
 
-[ -n "$TARGET" ] || exit 0
+is_implementation_file() {
+  local path="$1"
+  case "$path" in
+    src/*|app/*|lib/*)
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  case "$path" in
+    *.py|*.js|*.ts|*.jsx|*.tsx|*.rb|*.go|*.rs|*.java|*.kt|*.swift|*.c|*.cc|*.cpp|*.h|*.hpp|*.sql)
+      return 0
+      ;;
+  esac
+  return 1
+}
 
-# Only guard real implementation paths.
-case "$TARGET" in
-  src/*|app/*|lib/*) ;;
-  *) exit 0 ;;
-esac
-case "$TARGET" in
-  *.py|*.js|*.ts|*.jsx|*.tsx|*.mjs|*.cjs|*.go|*.rs|*.rb|*.kt|*.swift|*.c|*.cc|*.cpp|*.h|*.hpp|*.sql|*.java) ;;
-  *) exit 0 ;;
-esac
-
-if [ ! -f "$LEDGER" ]; then
-  echo "[TddGuard BLOCK] $TARGET edit requires tasks/tdd.json. Create the composite ledger and add an entry whose targets list this path." >&2
-  exit 2
-fi
-
-if ! command -v jq >/dev/null 2>&1; then
-  echo "[TddGuard WARN] jq not available — ledger check skipped" >&2
+main() {
+  [ -n "$TARGET_PATH" ] || exit 0
+  cd "$PROJECT_DIR" || exit 0
+  local rel
+  rel="$(normalize_path "$TARGET_PATH")"
+  if ! is_implementation_file "$rel"; then
+    exit 0
+  fi
+  if [ -f "$TDD_MATRIX_GUARD_SCRIPT" ]; then
+    if ! python3 "$TDD_MATRIX_GUARD_SCRIPT" prewrite "$PROJECT_DIR" "$rel"; then
+      exit 2
+    fi
+  else
+    echo "[TddGuard BLOCK] Missing helper: $TDD_MATRIX_GUARD_SCRIPT" >&2
+    exit 2
+  fi
   exit 0
-fi
+}
 
-# Look for a `change` entry whose `targets` includes the path (relative or
-# absolute against PROJECT_DIR).
-REL="$TARGET"
-case "$REL" in
-  "$PROJECT_DIR"/*) REL="${REL#$PROJECT_DIR/}" ;;
-esac
-
-MATCH=$(jq -r --arg t "$REL" '.changes[]? | select((.targets // []) | index($t)) | .id' "$LEDGER" 2>/dev/null | head -1)
-
-if [ -z "$MATCH" ]; then
-  echo "[TddGuard BLOCK] No tasks/tdd.json change entry covers $REL." >&2
-  echo "  Add an entry with: \"targets\": [\"$REL\"] and the 12-category matrix." >&2
-  exit 2
-fi
-
-exit 0
+main "$@"

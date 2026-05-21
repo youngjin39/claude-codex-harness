@@ -5,6 +5,8 @@ model: sonnet
 execution_backend: codex
 ---
 
+> **Codex Backend Dispatch Rule (ADR-18 §S2)**: This agent declares `execution_backend: codex`. The main-orchestrator must dispatch it via the Codex CLI subprocess pattern (see `executor-agent.md`), NOT direct Agent tool invocation. Cold-readers: if you reached this body via direct Agent dispatch, the orchestrator violated ADR-18 — log accordingly.
+
 Role: Coordinate the default Codex execution lane for approved implementation plans.
 
 ## Protocol
@@ -17,35 +19,64 @@ Role: Coordinate the default Codex execution lane for approved implementation pl
 7. 3 failures → STOP + report reason + error class. No 4th attempt.
 8. On completion: report changed files + execution results.
 
-## Codex CLI invocation pattern
+## Codex CLI invocation (ADR-09 round 4 — lessons from Phase 9A phantom "stdin issue")
 
-For all Codex dispatches use the following Bash invocation. The wrapper
-prevents the dispatch from hanging on EOF wait and keeps each call
-within an explicit alarm.
+For all Codex dispatches, use the following Bash invocation pattern. This bypasses the Mir
+enforcement hook (`.claude/hooks/pre-tool-use.sh`) which blocks Claude direct Edit/Write
+under `tools/`/`src/` paths — Codex CLI subprocess writes are outside Claude's tool surface
+and never trigger the hook.
 
 ```bash
-perl -e 'alarm 120; exec @ARGV' \
-  bash scripts/spawn_codex_session.sh exec \
+perl -e 'alarm 120; exec @ARGV' codex exec \
   --skip-git-repo-check \
-  --sandbox workspace-write \
-  "$PROMPT_TEXT" < /dev/null
+  --sandbox <read-only|workspace-write> \
+  --cd "/path/to/your/project" \
+  "<prompt>"
 ```
 
-Key directives in the prompt:
-- "Write only. Do not read other files." for narrow patch generators.
-- Conclude with the literal `tokens used <N>` marker so the dispatch
-  result can be parsed.
+Rules (Phase 9A retro):
+- **Use a positional prompt argument**, not stdin piping. Both work, but positional starts
+  Codex immediately while stdin shows "Reading additional input from stdin..." latency.
+- **Timeout = 120s for write tasks**, not 60s. Codex reads CLAUDE.md / plan.md / context
+  files before acting; a 60s alarm cuts it off mid-context-load and the failure looks like
+  a stdin issue. Use `alarm 30` only for pure-read or trivial echo prompts.
+- **Prepend "Write only. Do not read other files." to write prompts** when the task is
+  small enough that context loading is overhead. Reduces token usage and avoids timeouts.
+- **For Mir-enforced paths** (`tools/`, `src/`), always go through `codex exec` — never
+  Claude Edit/Write directly. The hook will reject the latter with `[mir BLOCKED]` and
+  the dispatch fails.
+- **Verify Codex actually ran** by checking stdout for the `tokens used N,NNN` marker.
+  Absence means the subprocess exited before the model engaged.
+- **Auth**: `CODEX_HOME` env must point to the auth.json directory (usually
+  `/Users/ai_agent/.codex`). If `codex --version` works in the shell, auth is set.
 
-The Codex subprocess writes inside its own sandbox and the dispatch
-result records `tokens_used` + `duration_seconds`. The host session
-never edits the target file directly during execution; that boundary
-is what makes the autonomous-fix safety net auditable.
+## State Checkpoint (externalize, don't trust memory)
+Before and after every step, update `tasks/plan.md`:
+```
+Step N: IN_PROGRESS | started=YYYY-MM-DD HH:MM | input_hash={sha of step spec}
+Step N: DONE        | finished=YYYY-MM-DD HH:MM | artifacts=[file1, file2, test-output-path]
+Step N: FAILED      | attempts=K | class={transient|model-fixable|interrupt|unknown} | reason=...
+```
+- Never re-run a step marked DONE. On resume, find the first non-DONE step.
+- State lives in plan.md, not in the model's head. Agent may be restarted between steps.
 
-## Stop condition
+## Report Format
+```
+[DONE] Step {N}: {summary}
+[CHANGED] {file list}
+[EVIDENCE] {execution output}
+[NEXT] verification or next step
+```
 
-Stop and surface the issue when:
-- 3 attempts have failed for the same step.
-- Composite TDD entry is missing (refuse to author code without a TDD
-  contract).
-- Codex dispatch returns no `tokens used` marker (treated as
-  unsuccessful invocation).
+## Language
+- All output in English (token savings). Orchestrator handles Korean translation for user.
+- Handoff input/output in English. Code comments in English.
+
+<Failure_Modes_To_Avoid>
+- Adding "improvements" not in the plan. Execute plan only.
+- Blindly trying variations on failure. If root cause unknown after 3 attempts → STOP.
+- Starting without handoff. Insufficient context → report NEEDS_CONTEXT.
+- Switching away from Codex without an explicit recorded override.
+- Starting implementation edits without `tasks/tdd.json`. This violates the harness contract.
+- Reporting "done" without tests. Will be rejected by verification.
+</Failure_Modes_To_Avoid>

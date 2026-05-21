@@ -1,0 +1,914 @@
+{
+  "version": 2,
+  "purpose": "Per-repository agent-management registry for the Claude+Codex Harness Template. Fork and customize for your fleet.",
+  "repositories_dir": "config/repos",
+  "catalog": {
+    "review_cadence": "monthly_user_directed",
+    "agents": {
+      "main-orchestrator": {
+        "role": "control_plane",
+        "execution_backend": "claude",
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/agents/main-orchestrator.md",
+        "notes": [],
+        "recommended_skills": [
+          "design",
+          "verify"
+        ]
+      },
+      "executor-agent": {
+        "role": "execution",
+        "execution_backend": "codex",
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/agents/executor-agent.md",
+        "notes": [],
+        "recommended_skills": [
+          "testing",
+          "verify",
+          "code-review"
+        ]
+      },
+      "codex-final-reviewer": {
+        "role": "review",
+        "execution_backend": "codex",
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/agents/codex-final-reviewer.md",
+        "notes": [],
+        "recommended_skills": [
+          "verify",
+          "code-review"
+        ]
+      },
+      "quality-agent": {
+        "role": "review",
+        "execution_backend": "claude",
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/agents/quality-agent.md",
+        "notes": [],
+        "recommended_skills": [
+          "code-review",
+          "verify"
+        ]
+      },
+      "fleet-doc-steward": {
+        "role": "governance",
+        "execution_backend": "claude",
+        "scope": "meta_harness",
+        "status": "active",
+        "source_path": ".claude/agents/fleet-doc-steward.md",
+        "notes": [],
+        "recommended_skills": [
+          "governance"
+        ]
+      },
+      "cwe-auditor": {
+        "role": "specialist",
+        "execution_backend": "claude",
+        "scope": "code_app,hybrid_pipeline",
+        "status": "active",
+        "source_path": ".claude/agents/cwe-auditor.md",
+        "notes": [
+          "Deploy when your family has code files; enable per-family once you have dispatch evidence"
+        ],
+        "scope_patterns": [
+          "**/*.py",
+          "**/*.js",
+          "**/*.ts",
+          "**/*.tsx",
+          "**/*.go",
+          "**/*.rs",
+          "**/*.java",
+          "**/*.kt",
+          "**/*.c",
+          "**/*.cc",
+          "**/*.cpp",
+          "**/*.h",
+          "docs/security-policy.md",
+          ".ai-harness/security-rules.md"
+        ],
+        "recommended_skills": [
+          "code-review",
+          "verify"
+        ]
+      },
+      "dep-auditor": {
+        "role": "specialist",
+        "execution_backend": "claude",
+        "scope": "code_app,hybrid_pipeline,learning_workspace",
+        "status": "active",
+        "source_path": ".claude/agents/dep-auditor.md",
+        "notes": [
+          "Deploy when your family has dependency manifests; enable per-family once you have dispatch evidence"
+        ],
+        "scope_patterns": [
+          "requirements*.txt",
+          "Pipfile*",
+          "poetry.lock",
+          "pyproject.toml",
+          "package.json",
+          "package-lock.json",
+          "yarn.lock",
+          "Cargo.toml",
+          "Cargo.lock",
+          "go.mod",
+          "go.sum",
+          "Gemfile",
+          "Gemfile.lock",
+          "build.gradle*",
+          "pom.xml",
+          "**/*.requirements"
+        ],
+        "recommended_skills": [
+          "code-review",
+          "verify"
+        ]
+      },
+      "ui-reviewer": {
+        "role": "specialist",
+        "execution_backend": "claude",
+        "scope": "code_app",
+        "status": "active",
+        "source_path": ".claude/agents/ui-reviewer.md",
+        "notes": [
+          "Deploy when your family has UI component files"
+        ],
+        "scope_patterns": [
+          "**/*.tsx",
+          "**/*.jsx",
+          "**/*.vue",
+          "**/*.svelte",
+          "**/*.html",
+          "**/*.css",
+          "**/*.scss"
+        ],
+        "recommended_skills": [
+          "ui-design",
+          "code-review"
+        ]
+      },
+      "pipeline-validator": {
+        "role": "specialist",
+        "execution_backend": "codex",
+        "scope": "hybrid_pipeline",
+        "status": "active",
+        "source_path": ".claude/agents/pipeline-validator.md",
+        "notes": [
+          "Deploy when your family has data pipeline definitions"
+        ],
+        "scope_patterns": [
+          "**/dag/**",
+          "**/pipelines/**",
+          "**/etl/**",
+          "**/airflow*/**",
+          "**/*.airflow.yaml",
+          "**/*.dvc",
+          "**/schemas/**/*.json",
+          "**/schemas/**/*.yaml"
+        ],
+        "recommended_skills": [
+          "verify"
+        ]
+      },
+      "ontology-validator": {
+        "role": "specialist",
+        "execution_backend": "claude",
+        "scope": "content_workspace",
+        "status": "active",
+        "source_path": ".claude/agents/ontology-validator.md",
+        "notes": [
+          "Deploy when your family has content ontology or taxonomy files"
+        ],
+        "scope_patterns": [
+          "content/**/*.md",
+          "ontology/**",
+          "**/*.ontology.yaml",
+          "**/*.taxonomy.yaml",
+          "docs/content-model.md"
+        ],
+        "recommended_skills": [
+          "verify",
+          "knowledge"
+        ]
+      },
+      "runtime-contract-reviewer": {
+        "role": "specialist",
+        "execution_backend": "claude",
+        "scope": "infra_runtime",
+        "status": "active",
+        "source_path": ".claude/agents/runtime-contract-reviewer.md",
+        "notes": [
+          "Deploy when your family has runtime exception hierarchies or public API contracts"
+        ],
+        "scope_patterns": [
+          "**/runtime/**",
+          "**/exceptions.py",
+          "**/errors.py",
+          "**/*.error.ts",
+          "tools/**/runtime_contract*"
+        ],
+        "recommended_skills": [
+          "verify",
+          "code-review"
+        ]
+      },
+      "template-sync-validator": {
+        "role": "specialist",
+        "execution_backend": "claude",
+        "scope": "template_transitional",
+        "status": "active",
+        "source_path": ".claude/agents/template-sync-validator.md",
+        "notes": [
+          "Deploy when your family manages a public template sync"
+        ],
+        "scope_patterns": [
+          "**/CLAUDE.md",
+          "**/AGENTS.md",
+          "**/.claude/**",
+          "**/.codex/**",
+          "scripts/generate_codex_derivatives.sh",
+          "config/repo-agent-management.json"
+        ],
+        "recommended_skills": [
+          "governance",
+          "verify"
+        ]
+      }
+    },
+    "skills": {
+      "design": {
+        "category": "design",
+        "absorbs": [
+          "brainstorming",
+          "writing-plans",
+          "analyze-design",
+          "audit-design-fit",
+          "develop-from-design",
+          "role-split-pipeline",
+          "deep-interview"
+        ],
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/skills/design/"
+      },
+      "verify": {
+        "category": "verify",
+        "absorbs": [
+          "verification",
+          "verify-against-spec",
+          "self-audit",
+          "review-code"
+        ],
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/skills/verify/"
+      },
+      "code-review": {
+        "category": "code-review",
+        "absorbs": [],
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/skills/code-review/"
+      },
+      "testing": {
+        "category": "testing",
+        "absorbs": [],
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/skills/testing/"
+      },
+      "ui-design": {
+        "category": "ui-design",
+        "absorbs": [
+          "ux-ui-design"
+        ],
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/skills/ui-design/"
+      },
+      "governance": {
+        "category": "governance",
+        "absorbs": [
+          "fleet-instruction-doc-ops",
+          "fleet-governance-advisory",
+          "project-doctor",
+          "claude-agents-optimizer"
+        ],
+        "scope": "meta_harness",
+        "status": "active",
+        "source_path": ".claude/skills/governance/"
+      },
+      "knowledge": {
+        "category": "knowledge",
+        "absorbs": [
+          "knowledge-ingest",
+          "knowledge-lint"
+        ],
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/skills/knowledge/"
+      },
+      "automation": {
+        "category": "automation",
+        "absorbs": [
+          "runner",
+          "browser-automation"
+        ],
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/skills/automation/"
+      },
+      "efficiency": {
+        "category": "efficiency",
+        "absorbs": [
+          "improve-token-efficiency",
+          "ai-readiness-cartography"
+        ],
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/skills/efficiency/"
+      },
+      "bluebricks": {
+        "category": "bluebricks",
+        "absorbs": [
+          "ai-ready-bluebricks-development"
+        ],
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/skills/bluebricks/"
+      },
+      "commit": {
+        "category": "commit",
+        "absorbs": [
+          "git-commit"
+        ],
+        "scope": "universal",
+        "status": "active",
+        "source_path": ".claude/skills/commit/"
+      }
+    }
+  },
+  "management_domains": {
+    "central_ownership_contract": {
+      "description": "Remember the root source-of-truth surfaces and generated mirrors that define how the repository's agents must be governed.",
+      "memory_focus": [
+        "CLAUDE.md authority",
+        "AGENTS.md generated mirror",
+        "source-vs-generated edit boundary"
+      ]
+    },
+    "repository_overlay": {
+      "description": "Remember the repository-local overlay contract that narrows how the harness may manage this repository.",
+      "memory_focus": [
+        "repo-profile",
+        "preserve boundaries",
+        "overlay archetype"
+      ]
+    },
+    "generation_verification_pipeline": {
+      "description": "Remember the scripts, compilers, and verifiers that regenerate or prove the repository's agent surfaces.",
+      "memory_focus": [
+        "profile compiler",
+        "Codex derivation",
+        "verifier sequence"
+      ]
+    },
+    "operating_contract": {
+      "description": "Remember the durable ledgers and rules that agents must maintain during day-to-day work.",
+      "memory_focus": [
+        "tasks/plan.md",
+        "tasks/tdd.json",
+        "change log and decision trail"
+      ]
+    },
+    "harness_structure": {
+      "description": "Remember the main structural surfaces that make the harness present in the repository.",
+      "memory_focus": [
+        "agents",
+        "hooks",
+        "skills",
+        "runtime policy split"
+      ]
+    },
+    "harness_format": {
+      "description": "Remember the generated format and packaging surfaces that must stay mechanically consistent.",
+      "memory_focus": [
+        "codex mirrors",
+        "hook settings",
+        "plugin/commands packaging"
+      ]
+    },
+    "agent_management": {
+      "description": "Remember the repository's agent topology, optional packs, and bounded management mode.",
+      "memory_focus": [
+        "agent topology",
+        "optional pack selection",
+        "runtime override discipline"
+      ]
+    }
+  },
+  "templates": {
+    "meta_harness": {
+      "description": "Self-hosting harness control repository. Full authority over contracts, generators, verifiers, and fleet policy.",
+      "default_management_mode": "self-hosted",
+      "default_agent_topology": "claude-control-plus-codex-execution; fleet-doc-steward (governance-tier, read-only fleet review, outside specialist pack)",
+      "tracked_paths": {
+        "central_ownership_contract": [
+          "CLAUDE.md",
+          "AGENTS.md",
+          ".claude/agents/**",
+          ".claude/skills/**"
+        ],
+        "repository_overlay": [
+          ".mir/repo-profile.toml",
+          "docs/decisions/repo-profile-schema*.md"
+        ],
+        "generation_verification_pipeline": [
+          "tools/profile_compiler/**",
+          "scripts/generate_codex_derivatives.sh",
+          "scripts/verify_codex_sync.py"
+        ],
+        "operating_contract": [
+          "tasks/plan.md",
+          "tasks/tdd.json",
+          "tasks/change_log.md",
+          "docs/decisions/**"
+        ],
+        "harness_structure": [
+          ".ai-harness/**",
+          ".claude/hooks/**",
+          ".mcp.json"
+        ],
+        "harness_format": [
+          ".codex/**"
+        ],
+        "agent_management": [
+          "config/repo-agent-management.json",
+          ".claude/settings.json"
+        ]
+      },
+      "default_verification": [
+        "python3 scripts/verify_repo_agent_management.py"
+      ],
+      "default_agent_pack": {
+        "orchestrator": "main-orchestrator",
+        "executor": "executor-agent",
+        "reviewers": [
+          "codex-final-reviewer",
+          "quality-agent"
+        ],
+        "specialists": [
+          "cwe-auditor",
+          "dep-auditor",
+          "ui-reviewer",
+          "pipeline-validator",
+          "ontology-validator",
+          "runtime-contract-reviewer",
+          "template-sync-validator"
+        ]
+      },
+      "default_skill_pack": {
+        "core": [
+          "design",
+          "verify"
+        ],
+        "code": [
+          "testing",
+          "code-review",
+          "bluebricks"
+        ],
+        "domain": [
+          "governance",
+          "efficiency",
+          "knowledge",
+          "automation"
+        ]
+      }
+    },
+    "learning_low_code": {
+      "description": "Learning-heavy repository with managed agent contract and relatively small code surface.",
+      "default_management_mode": "mir-managed",
+      "default_agent_topology": "claude-control-plus-codex-execution",
+      "tracked_paths": {
+        "central_ownership_contract": [
+          "CLAUDE.md",
+          "AGENTS.md",
+          ".claude/agents/**"
+        ],
+        "repository_overlay": [
+          ".mir/repo-profile.toml",
+          ".mir-preserve.toml"
+        ],
+        "generation_verification_pipeline": [
+          "scripts/generate_codex_derivatives.sh",
+          "scripts/verify_codex_sync.py"
+        ],
+        "operating_contract": [
+          "tasks/plan.md",
+          "tasks/tdd.json",
+          "tasks/change_log.md"
+        ],
+        "harness_structure": [
+          ".claude/hooks/**",
+          ".claude/skills/**",
+          ".ai-harness/**"
+        ],
+        "harness_format": [
+          ".codex/**",
+          ".mcp.json"
+        ],
+        "agent_management": [
+          ".claude/settings.json"
+        ]
+      },
+      "default_verification": [
+        "python3 scripts/verify_codex_sync.py"
+      ],
+      "default_agent_pack": {
+        "orchestrator": "main-orchestrator",
+        "executor": "executor-agent",
+        "reviewers": [
+          "codex-final-reviewer",
+          "quality-agent"
+        ],
+        "specialists": [
+          "dep-auditor"
+        ]
+      },
+      "default_skill_pack": {
+        "core": [
+          "design",
+          "verify"
+        ],
+        "code": [
+          "testing",
+          "code-review"
+        ],
+        "domain": [
+          "knowledge"
+        ]
+      }
+    },
+    "code_app": {
+      "description": "Standard code-focused repository with full managed agent contract.",
+      "default_management_mode": "mir-managed",
+      "default_agent_topology": "claude-control-plus-codex-execution",
+      "tracked_paths": {
+        "central_ownership_contract": [
+          "CLAUDE.md",
+          "AGENTS.md",
+          ".claude/agents/**"
+        ],
+        "repository_overlay": [
+          ".mir/repo-profile.toml",
+          ".mir-preserve.toml"
+        ],
+        "generation_verification_pipeline": [
+          "scripts/generate_codex_derivatives.sh",
+          "scripts/verify_codex_sync.py"
+        ],
+        "operating_contract": [
+          "tasks/plan.md",
+          "tasks/tdd.json",
+          "tasks/change_log.md"
+        ],
+        "harness_structure": [
+          ".claude/hooks/**",
+          ".claude/skills/**",
+          ".ai-harness/**"
+        ],
+        "harness_format": [
+          ".codex/**",
+          ".mcp.json"
+        ],
+        "agent_management": [
+          ".claude/settings.json"
+        ]
+      },
+      "default_verification": [
+        "python3 scripts/verify_codex_sync.py"
+      ],
+      "default_agent_pack": {
+        "orchestrator": "main-orchestrator",
+        "executor": "executor-agent",
+        "reviewers": [
+          "codex-final-reviewer",
+          "quality-agent"
+        ],
+        "specialists": [
+          "cwe-auditor",
+          "dep-auditor",
+          "ui-reviewer"
+        ]
+      },
+      "default_skill_pack": {
+        "core": [
+          "design",
+          "verify"
+        ],
+        "code": [
+          "testing",
+          "code-review",
+          "bluebricks"
+        ],
+        "domain": []
+      }
+    },
+    "hybrid_pipeline": {
+      "description": "Data pipeline or hybrid code+pipeline repository with managed agent contract.",
+      "default_management_mode": "mir-managed",
+      "default_agent_topology": "claude-control-plus-codex-execution",
+      "tracked_paths": {
+        "central_ownership_contract": [
+          "CLAUDE.md",
+          "AGENTS.md",
+          ".claude/agents/**"
+        ],
+        "repository_overlay": [
+          ".mir/repo-profile.toml",
+          ".mir-preserve.toml"
+        ],
+        "generation_verification_pipeline": [
+          "scripts/generate_codex_derivatives.sh",
+          "scripts/verify_codex_sync.py"
+        ],
+        "operating_contract": [
+          "tasks/plan.md",
+          "tasks/tdd.json",
+          "tasks/change_log.md"
+        ],
+        "harness_structure": [
+          ".claude/hooks/**",
+          ".claude/skills/**",
+          ".ai-harness/**"
+        ],
+        "harness_format": [
+          ".codex/**",
+          ".mcp.json"
+        ],
+        "agent_management": [
+          ".claude/settings.json"
+        ]
+      },
+      "default_verification": [
+        "python3 scripts/verify_codex_sync.py"
+      ],
+      "default_agent_pack": {
+        "orchestrator": "main-orchestrator",
+        "executor": "executor-agent",
+        "reviewers": [
+          "codex-final-reviewer",
+          "quality-agent"
+        ],
+        "specialists": [
+          "cwe-auditor",
+          "dep-auditor",
+          "pipeline-validator"
+        ]
+      },
+      "default_skill_pack": {
+        "core": [
+          "design",
+          "verify"
+        ],
+        "code": [
+          "testing",
+          "code-review",
+          "bluebricks"
+        ],
+        "domain": []
+      }
+    },
+    "content_workspace": {
+      "description": "Content-first repository with bounded Codex usage and stronger non-code management memory.",
+      "default_management_mode": "mir-managed",
+      "default_agent_topology": "claude-control-plus-codex-bounded",
+      "tracked_paths": {
+        "central_ownership_contract": [
+          "CLAUDE.md",
+          "AGENTS.md",
+          ".claude/agents/**"
+        ],
+        "repository_overlay": [
+          ".mir/repo-profile.toml",
+          ".mir-preserve.toml"
+        ],
+        "generation_verification_pipeline": [
+          "scripts/generate_codex_derivatives.sh",
+          "scripts/verify_codex_sync.py"
+        ],
+        "operating_contract": [
+          "tasks/plan.md",
+          "tasks/tdd.json",
+          "tasks/change_log.md",
+          "docs/**"
+        ],
+        "harness_structure": [
+          ".claude/hooks/**",
+          ".claude/skills/**",
+          ".ai-harness/**"
+        ],
+        "harness_format": [
+          ".codex/**",
+          ".mcp.json"
+        ],
+        "agent_management": [
+          ".claude/settings.json"
+        ]
+      },
+      "default_verification": [
+        "python3 scripts/verify_codex_sync.py"
+      ],
+      "default_agent_pack": {
+        "orchestrator": "main-orchestrator",
+        "executor": "executor-agent",
+        "reviewers": [
+          "codex-final-reviewer",
+          "quality-agent"
+        ],
+        "specialists": [
+          "ontology-validator"
+        ]
+      },
+      "default_skill_pack": {
+        "core": [
+          "design",
+          "verify"
+        ],
+        "code": [
+          "testing",
+          "code-review"
+        ],
+        "domain": [
+          "knowledge"
+        ]
+      }
+    },
+    "infra_runtime": {
+      "description": "Infrastructure or runtime repository with strict contract enforcement.",
+      "default_management_mode": "mir-managed",
+      "default_agent_topology": "claude-control-plus-codex-execution",
+      "tracked_paths": {
+        "central_ownership_contract": [
+          "CLAUDE.md",
+          "AGENTS.md",
+          ".claude/agents/**"
+        ],
+        "repository_overlay": [
+          ".mir/repo-profile.toml",
+          ".mir-preserve.toml"
+        ],
+        "generation_verification_pipeline": [
+          "scripts/generate_codex_derivatives.sh",
+          "scripts/verify_codex_sync.py"
+        ],
+        "operating_contract": [
+          "tasks/plan.md",
+          "tasks/tdd.json",
+          "tasks/change_log.md"
+        ],
+        "harness_structure": [
+          ".claude/hooks/**",
+          ".claude/skills/**",
+          ".ai-harness/**"
+        ],
+        "harness_format": [
+          ".codex/**",
+          ".mcp.json"
+        ],
+        "agent_management": [
+          ".claude/settings.json"
+        ]
+      },
+      "default_verification": [
+        "python3 scripts/verify_codex_sync.py"
+      ],
+      "default_agent_pack": {
+        "orchestrator": "main-orchestrator",
+        "executor": "executor-agent",
+        "reviewers": [
+          "codex-final-reviewer",
+          "quality-agent"
+        ],
+        "specialists": [
+          "cwe-auditor",
+          "runtime-contract-reviewer"
+        ]
+      },
+      "default_skill_pack": {
+        "core": [
+          "design",
+          "verify"
+        ],
+        "code": [
+          "testing",
+          "code-review",
+          "bluebricks"
+        ],
+        "domain": []
+      }
+    },
+    "template_transitional": {
+      "description": "Transitional template repository — fork and customize for your fleet.",
+      "default_management_mode": "bounded-managed",
+      "default_agent_topology": "claude-control-plus-codex-execution",
+      "tracked_paths": {
+        "central_ownership_contract": [
+          "CLAUDE.md",
+          "AGENTS.md",
+          ".claude/agents/**"
+        ],
+        "repository_overlay": [
+          ".mir/repo-profile.toml"
+        ],
+        "generation_verification_pipeline": [
+          "scripts/generate_codex_derivatives.sh"
+        ],
+        "operating_contract": [
+          "tasks/plan.md",
+          "tasks/tdd.json"
+        ],
+        "harness_structure": [
+          ".claude/hooks/**",
+          ".claude/skills/**",
+          ".ai-harness/**"
+        ],
+        "harness_format": [
+          ".codex/**"
+        ],
+        "agent_management": [
+          ".claude/settings.json"
+        ]
+      },
+      "default_verification": [
+        "python3 scripts/verify_codex_sync.py"
+      ],
+      "default_agent_pack": {
+        "orchestrator": "main-orchestrator",
+        "executor": "executor-agent",
+        "reviewers": [
+          "codex-final-reviewer",
+          "quality-agent"
+        ],
+        "specialists": [
+          "template-sync-validator"
+        ]
+      },
+      "default_skill_pack": {
+        "core": [
+          "design",
+          "verify"
+        ],
+        "code": [
+          "testing",
+          "code-review"
+        ],
+        "domain": [
+          "governance"
+        ]
+      }
+    }
+  },
+  "hook_policy": {
+    "enforcement_domain": [
+      "tools/",
+      "src/",
+      "lib/",
+      "pre-commit (lint+test gate)",
+      "tdd-guard (implementation-before-test block)"
+    ],
+    "advisory_domain": [
+      ".claude/agents/",
+      ".claude/skills/",
+      "config/repo-agent-management.json",
+      "docs/",
+      "tasks/"
+    ],
+    "doc_pointer": "CLAUDE.md#hook-policy-boundary"
+  },
+  "claude_codex_compatibility": {
+    "claude_only_responsibilities": [
+      "requirements clarification",
+      "architecture",
+      "design approval",
+      "orchestration",
+      "planning",
+      "dispatch",
+      "exception handling",
+      "final merge judgment"
+    ],
+    "codex_only_responsibilities": [
+      "code writing",
+      "code modification",
+      "composite TDD execution",
+      "deterministic verification",
+      "code review"
+    ],
+    "runtime_override_path": "tasks/plan.md or the active handoff note",
+    "doc_pointer": "docs/decisions/role-policy.md"
+  },
+  "change_log": []
+}

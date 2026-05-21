@@ -1,45 +1,58 @@
 ---
 name: testing
-description: Test writing and execution. Cover the 12-category matrix honestly.
-trigger: test, TDD, unit test, integration test, regression
+description: "Test writing and execution.\n\nTrigger: test, TDD, unit test, integration test"
+context: fork
 ---
 
-# testing
+# Testing
 
-Loaded for any task that adds or modifies tests, or that runs them.
+## Procedure
+1. Detect test framework (package.json scripts, config files).
+2. Create or update `tasks/tdd.json` before implementation edits.
+3. Use Codex as the default TDD execution lane for code changes. Any non-Codex override must be explicitly recorded with reason.
+4. For each changed implementation target, classify every mandatory TDD category:
+   - `unit`
+   - `integration`
+   - `e2e`
+   - `browser`
+   - `edge`
+   - `architecture`
+   - `availability`
+   - `load`
+   - `soak`
+   - `security`
+   - `compatibility`
+   - `transaction_locking`
+5. Check if tests already exist for changed files. Create or extend them when coverage is missing.
+6. Follow existing test patterns. Add edge cases and system-boundary checks.
+7. Run the commands declared in `tasks/tdd.json`. On failure: root cause analysis → fix → re-run.
 
-## Discipline
+## Rules
+- Test names: `should_return_X_when_Y`.
+- Edge cases: null, empty, boundary, error, concurrent.
+- No mocks for external services unless explicitly approved.
+- Code review is not proof of correctness. Executed TDD evidence is.
+- `planned` TDD categories are allowed before editing implementation code, but must not survive to commit time.
+- `not_applicable` requires a concrete reason.
+- `pass` and `covered_existing` require runnable commands.
+- Browser and E2E categories are mandatory to classify even when they do not apply.
 
-- One assertion per test, when feasible.
-- Test names describe the behavior, not the function.
-- A test that needs >5 lines of setup is a sign the production code has bad seams. Refactor production first.
-- Tests that depend on other tests' execution order are bugs.
-- Tests that read live filesystem state outside `tmp_path` are integration tests; mark them as such.
+## GUI Testing (Computer Use)
+When the project has GUI components and computer-use MCP is enabled:
+1. Build and launch the app.
+2. Execute UI flows: tap, scroll, navigate between screens.
+3. Screenshot any visual anomalies or errors.
+4. Report layout issues with screenshot evidence.
 
-## The 12-category matrix
+Ref: `docs/integrations/computer-use-gui-testing.md`
 
-Required for every `change` entry in `tasks/tdd.json`. See `.ai-harness/tdd-matrix.md` for the full schema. The categories are:
+## Output
+```
+## Test Results
+| File | Tests | Pass | Fail | Coverage |
+|---|---|---|---|---|
+| {file} | {N} | {N} | {N} | {%} |
 
-`unit` · `integration` · `e2e` · `browser` · `edge` · `architecture` · `availability` · `load` · `soak` · `security` · `compatibility` · `transaction_locking`
-
-Most rows will be `not_applicable` for a given change — that is fine. The point is forcing the agent to consider each dimension. Review the entry against the surface area of the change; do not just copy the previous entry.
-
-## Edge cases worth exercising
-
-- Empty input
-- Single-element input
-- Maximum-size input within reason
-- Unicode (CJK, emoji, RTL)
-- BOM-prefixed text
-- CRLF line endings
-- Time-of-day boundaries (midnight, leap second, DST)
-- Negative numbers, NaN, infinity (for numeric code)
-- Concurrent write (for stateful code)
-
-If your `edge` row is `not_applicable`, the implementation is genuinely pure-function. If your function takes any input, walk this list before declaring it edge-free.
-
-## Running
-
-- Test command goes in the ledger entry's `categories.<name>.command`.
-- Failure output gets surfaced to the user, not summarized.
-- A test that "sometimes fails" is a flaky test; mark it as such and open a ledger entry to fix it.
+### Failures (if any)
+- {test_name}: {root cause} → {fix applied}
+```

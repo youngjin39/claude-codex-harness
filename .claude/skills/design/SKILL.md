@@ -1,46 +1,30 @@
 ---
 name: design
-description: Hard gate before coding. Compare 2-3 alternatives, surface trade-offs, get user approval.
-trigger: design, brainstorm, brainstorming, architecture, new feature
+description: "Pre-coding design enforcement (brainstorming, planning, design analysis, design review, multi-role pipeline). Hard gate before code.\n\nTrigger: design, brainstorming, plan, implementation plan, architecture, audit design, develop from design, role-split, interview\n\nAbsorbs: brainstorming, writing-plans, analyze-design, audit-design-fit, develop-from-design, role-split-pipeline, deep-interview"
 ---
 
-# design
+# Design
 
-Loaded when the request is "design X", "brainstorm Y", "architecture for Z", or "new feature N".
+## Use When
+- Before writing any new code or modifying existing architecture.
+- When requirements are ambiguous or multiple approaches exist.
+- When a plan or implementation steps are needed.
+- When a design or architecture needs audit or analysis.
+- When a multi-role pipeline review is required.
 
-## Purpose
+## Absorbed legacy skills
+- brainstorming — Design enforcement. Hard gate before coding.
+- writing-plans — Concrete implementation plan. Bite-sized steps.
+- analyze-design — Analyze and iterate design across sub-agents.
+- audit-design-fit — Audit design fit against original purpose.
+- develop-from-design — Design-driven harness development loop.
+- role-split-pipeline — Claude design → Codex review → executor dev → Codex eval 4-stage pipeline.
+- deep-interview — Requirements clarification. Ambiguity gating.
 
-Before any non-trivial code is written, produce a small alternatives matrix that the user can react to. The trap this skill prevents: agent picks the first plausible design, writes 800 lines, then discovers it does not match the user's mental model.
+## Workflow
+1. Identify which absorbed legacy intent applies (design vs. plan vs. interview etc.).
+2. Refer to the archived legacy SKILL.md under `archive/skills/<legacy>/` for original workflow.
+3. Output per absorbed legacy's protocol.
 
-## Output shape
-
-A short table (3 columns × 3-5 rows). One row per alternative.
-
-| | Alt A | Alt B | Alt C |
-|---|---|---|---|
-| Idea (one line) | … | … | … |
-| Cost to build | … | … | … |
-| Cost to maintain | … | … | … |
-| Failure mode | … | … | … |
-| Reversibility | … | … | … |
-
-Then a single sentence recommending one — with the lens you used. Recommendations without a stated lens get pushed back.
-
-## What this skill does NOT do
-
-- Write code.
-- Run tests.
-- Decide unilaterally.
-
-The user is in the loop. This skill produces a thing the user can react to, not a thing the user has to ratify.
-
-## Counter-narrative requirement
-
-Every recommendation includes a one-line "the case against this": the strongest argument someone would make for picking a different alternative. If you cannot make that argument, the alternatives matrix was not honest.
-
-## Exit criteria
-
-- User picks an alternative (explicit "go with B" or paraphrase).
-- Or the user adds a constraint that collapses the matrix.
-
-Do not start writing code until one of those happens.
+## Status
+This skill is the canonical entry point. Legacy slugs remain dispatchable until P15-I archive completes.

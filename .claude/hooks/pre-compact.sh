@@ -1,37 +1,52 @@
 #!/bin/bash
-# pre-compact.sh
-# Auto-write a handoff stub before the agent compacts its context, so the
-# next session can resume without losing the in-progress plan.
+# PreCompact hook: auto-save handoff + remind before compaction
+# stdout → Claude's context window
 
-set -u
-
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 HANDOFF_DIR="$PROJECT_DIR/tasks/handoffs"
-mkdir -p "$HANDOFF_DIR" 2>/dev/null || exit 0
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+HANDOFF_FILE="$HANDOFF_DIR/auto-${TIMESTAMP}.md"
+LATEST_RUNNER=$(find "$PROJECT_DIR/tasks/runner" -name "*.md" -type f 2>/dev/null | sort -r | head -1)
 
-TS="$(date -u +%Y%m%d-%H%M%S)"
-HANDOFF="$HANDOFF_DIR/auto-$TS.md"
+mkdir -p "$HANDOFF_DIR" || { echo "[PreCompact] ERROR: Cannot create $HANDOFF_DIR"; exit 0; }
 
+# Auto-generate handoff skeleton from current state
 {
-  echo "# Auto-handoff — $TS UTC"
-  echo
-  echo "## Plan at compact time"
-  echo
+  echo "# Auto Handoff — $TIMESTAMP"
+  echo ""
+  echo "## Current State"
   if [ -f "$PROJECT_DIR/tasks/plan.md" ]; then
-    sed -n '1,40p' "$PROJECT_DIR/tasks/plan.md"
+    echo '```'
+    head -20 "$PROJECT_DIR/tasks/plan.md"
+    echo '```'
+  fi
+  echo ""
+  echo "## Recent Changes"
+  if [ -d "$PROJECT_DIR/.git" ]; then
+    git -C "$PROJECT_DIR" log --oneline -5 2>/dev/null | sed 's/^/- /'
+  fi
+  echo ""
+  echo "## Runner State"
+  if [ -n "$LATEST_RUNNER" ] && [ -f "$LATEST_RUNNER" ]; then
+    echo "- Ledger: $LATEST_RUNNER"
+    grep -E '^- (stage|status|last_checked_at|resume_command):' "$LATEST_RUNNER" 2>/dev/null
   else
-    echo "(tasks/plan.md not present)"
+    echo "- No runner ledger found."
   fi
-  echo
-  echo "## TDD ledger entries in flight"
-  echo
-  if [ -f "$PROJECT_DIR/tasks/tdd.json" ] && command -v jq >/dev/null 2>&1; then
-    jq -r '.changes[] | select(.categories | to_entries | map(.value.status) | any(. == "planned")) | "- " + .id + " (scope: " + (.scope[:120] // "") + ")"' "$PROJECT_DIR/tasks/tdd.json" 2>/dev/null | head -10
-  fi
-  echo
-  echo "## Reminder"
-  echo "When the next session starts, read tasks/plan.md and resume the in-flight ledger entry."
-} > "$HANDOFF"
+  echo ""
+  echo "## TODO (fill before compact)"
+  echo "- Decisions:"
+  echo "- Rejected alternatives:"
+  echo "- Remaining risks:"
+  echo "- Next actions:"
+  echo "- Key files modified:"
+  echo "- Runner ledger path:"
+  echo "- Runner health / next inspection:"
+} > "$HANDOFF_FILE"
 
-echo "[PreCompact] handoff saved: $HANDOFF" >&2
-exit 0
+if [ -f "$HANDOFF_FILE" ]; then
+  echo "[PreCompact] Auto-handoff saved: $HANDOFF_FILE"
+else
+  echo "[PreCompact] ERROR: Failed to write handoff file."
+fi
+echo "Review and fill the TODO section before compaction proceeds."
