@@ -54,6 +54,40 @@ See CLAUDE.md "Orchestration Presets" table (single source of truth).
 7. Load verification skill → evidence-based verification.
 
 
+## Codex Backend Dispatch Self-Check (ADR-18 §S2 Layer 1)
+
+Before dispatching any agent via the Agent tool:
+
+1. Inspect the target agent's frontmatter via tools.agent_loader or by reading the .md file. (Cached from Startup Protocol step 3 — no re-Read needed unless cache stale.)
+2. If `execution_backend: codex`, the dispatch MUST flow through the Codex CLI subprocess pattern documented in `.claude/agents/executor-agent.md` (the `perl -e 'alarm <N>; exec @ARGV' codex exec ...` invocation). Direct Agent tool dispatch of these agents is forbidden.
+3. Affected agents today: `codex-final-reviewer`, `executor-agent`, `pipeline-validator`. New agents declaring `execution_backend: codex` are automatically in scope.
+4. Best-effort log: append a line to `tasks/log/dispatch-log.jsonl` with `{ts, agent_slug, routed_via, purpose, task_id}`. routed_via enum = `codex_cli` | `claude_session` | `unknown` | `skipped_inactive` | `skipped_empty_scope`. Optional `note` field is permitted for human-readable audit context. The two `skipped_*` values represent intentional non-dispatch (Active Agent Resolution + Specialist Scope-Pattern Routing) and are R11-exempt. If the log directory doesn't exist, do not fail the dispatch — log absence is INFO-level only.
+
+**Ordering**: Active Agent Resolution (below) runs FIRST as the eligibility gate. This Codex Backend Dispatch Self-Check runs SECOND, only for agents that survived the eligibility gate.
+
+
+## Active Agent Resolution (pre-dispatch)
+
+Before any specialist dispatch (runs BEFORE Codex Backend Dispatch Self-Check above):
+1. Look up the family entry in the cached aggregated `repositories[]`. The aggregation collapses `config/repo-agent-management.json` + per-family files under `repositories_dir` into a single in-memory list. Read `repositories[i].active_agents`.
+2. If the target specialist is NOT in `active_agents`, abort dispatch with log `{routed_via: "skipped_inactive", reason: "specialist not in family.active_agents"}`.
+3. If the specialist IS in `active_agents`, proceed to Codex Backend Dispatch Self-Check and Scope-Pattern Routing below.
+
+**Family-private agents** — Some families ship agents in their own `.claude/agents/` that are NOT in the global catalog. These appear in the family's local `.mir/harness-config.json` `active_agents` but not in the central per-family JSON. To dispatch them: operate inside the family's own repo session, read the family's local `.mir/harness-config.json` `active_agents`, and record the dispatch as an explicit override in `tasks/plan.md` or the active handoff note.
+
+
+## Specialist Scope-Pattern Routing (ADR-17 §S2)
+
+When dispatching a `role: specialist` agent (cwe-auditor, dep-auditor, ui-reviewer, pipeline-validator, ontology-validator, runtime-contract-reviewer, template-sync-validator):
+
+1. Look up the agent's `scope_patterns` in cached `catalog.agents[<slug>].scope_patterns`. If the field is absent → default `["**/*"]` (no filtering).
+2. For non-meta family dispatches, also check the family's `repositories[i].agent_overrides.scope_patterns_overrides[<slug>]`. When present, it is a **full replacement** of the catalog default (not merge).
+3. Filter the changed-file set against the effective patterns using `fnmatch.fnmatch(filepath_str, pattern)` semantics (NOT `pathlib.Path.match` — empirically `Path.match('**/*.py')` returns False for root-level files; fnmatch handles flat paths correctly).
+4. If the filtered set is **empty** → skip the specialist's dispatch entirely. Log with `routed_via: "skipped_empty_scope"`.
+5. Otherwise dispatch with the filtered file list as the specialist's fork context.
+6. Universal-tier agents (`role: control_plane`, `role: execution`, `role: review`, `role: governance`) are NOT filtered — they always see the full changed-file set.
+
+
 ## Sub-agent dispatch policy
 
 See CLAUDE.md "Role Policy (Template Profile)" and AGENTS.md `template:profile:role-policy` block for the binding policy contract. This section covers the per-agent declarative surface introduced by ADR-09.

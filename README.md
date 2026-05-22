@@ -280,7 +280,7 @@ Create `config/repos/my-repo.json`:
   "overlay_archetype": "code_app",
   "status": "active",
   "management_template_id": "code_app",
-  "management_mode": "mir-managed",
+  "management_mode": "harness-managed",
   "profile_source": {"kind": "live-profile", "path": ".mir/repo-profile.toml"},
   "managed_domains": [
     "central_ownership_contract",

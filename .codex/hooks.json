@@ -14,7 +14,7 @@
             "type": "command",
             "command": ".claude/hooks/pre-tool-use.sh",
             "timeout": 30,
-            "statusMessage": "Mir L2 PreToolUse"
+            "statusMessage": "Harness L2 PreToolUse"
           }
         ]
       }
@@ -27,7 +27,7 @@
             "type": "command",
             "command": ".claude/hooks/post-edit-check.sh",
             "timeout": 30,
-            "statusMessage": "Mir post-edit check"
+            "statusMessage": "Harness post-edit check"
           },
           {
             "type": "command",
@@ -46,7 +46,7 @@
             "type": "command",
             "command": ".claude/hooks/pre-tool-use.sh",
             "timeout": 30,
-            "statusMessage": "Mir L2 PermissionRequest"
+            "statusMessage": "Harness L2 PermissionRequest"
           }
         ]
       }
@@ -58,7 +58,7 @@
             "type": "command",
             "command": ".claude/hooks/session-start.sh",
             "timeout": 30,
-            "statusMessage": "Mir session-start"
+            "statusMessage": "Harness session-start"
           }
         ]
       }
@@ -70,7 +70,7 @@
             "type": "command",
             "command": ".claude/hooks/mir-stop.sh",
             "timeout": 30,
-            "statusMessage": "Mir Stop audit"
+            "statusMessage": "Harness Stop audit"
           }
         ]
       }
@@ -82,7 +82,7 @@
             "type": "command",
             "command": ".claude/hooks/pre-compact.sh",
             "timeout": 60,
-            "statusMessage": "Mir PreCompact checkpoint"
+            "statusMessage": "Harness PreCompact checkpoint"
           }
         ]
       }
