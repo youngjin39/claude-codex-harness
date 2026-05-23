@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mir/template/task_state",
+  "title": "Mir Task State Schema",
+  "description": "A user-given unit of work. May span multiple runs (retries). Holds the 5-element declaration (start-harness output) and run history.",
+  "type": "object",
+  "required": ["task_id", "title", "task_type", "risk_level", "status", "created"],
+  "additionalProperties": false,
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID identifier for this task."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Short title describing the task."
+    },
+    "task_type": {
+      "enum": ["code_execution", "research_planning", "review", "ops"],
+      "description": "4-way classification (phase-1-start-harness.md §4)."
+    },
+    "risk_level": {
+      "enum": ["low", "medium", "high"],
+      "description": "Risk classification (see ADR-21 candidate)."
+    },
+    "status": {
+      "enum": ["ACTIVE", "NEEDS_FIX", "BLOCKED", "COMPLETED", "ARCHIVED"],
+      "description": "Task-level status. Multiple runs map under one task."
+    },
+    "required_reads": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Files/docs that must be read before ACT begins (5-element declaration)."
+    },
+    "required_tools": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Allowed tools for this task (5-element declaration)."
+    },
+    "required_checks": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Verification steps required before DONE (5-element declaration)."
+    },
+    "route_to": {
+      "enum": ["executor_lane", "review_lane", "planning_flow", "ops_flow"],
+      "description": "Routing decision from start-harness."
+    },
+    "report_contract": {
+      "type": "string",
+      "description": "Name of the report_contract this task must satisfy (see phase-6-observability.md §9). Examples: concise_report_v1, audit_report_v1."
+    },
+    "runs": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"},
+      "description": "ULIDs of run_state entries belonging to this task."
+    },
+    "created": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of task creation."
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of last update."
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of COMPLETED status. Required if status == COMPLETED."
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "COMPLETED"}}, "required": ["status"]},
+      "then": {"required": ["completed_at"]}
+    }
+  ]
+}

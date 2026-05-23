@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mir/template/phase",
+  "title": "Mir Phase Ledger Schema",
+  "description": "Structured ledger of Mir harness phases (P0-X / P2-X / V2.X). Replaces the free-form Step N text in plan.md as the machine-readable source of truth for phase tracking, dependencies, and TDD cross-references.",
+  "type": "object",
+  "required": ["version", "phases"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"const": 1},
+    "current_phase": {
+      "type": "string",
+      "description": "Phase id currently in progress (must match an entry in phases[]). Optional; absent means the ledger is fully closed (no in_progress phase)."
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "step_index", "name", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Z][0-9]+(\\.[0-9]+)*(-[A-Za-z0-9.]+)?$",
+            "description": "Phase identifier. Examples: P0-A, P0-E.2, P2-B, V2.1, V2.3, P2.6.1 (multi-dot allowed)."
+          },
+          "step_index": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Monotonic step number matching plan.md Step N. Must be unique across phases."
+          },
+          "name": {"type": "string", "minLength": 1},
+          "status": {"enum": ["planned", "in_progress", "done", "blocked"]},
+          "finished": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+            "description": "ISO date YYYY-MM-DD. Required when status == done."
+          },
+          "deps": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of phase ids that must be done before this phase enters."
+          },
+          "tdd_links": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of tasks/tdd.json change ids that cover this phase. Cross-ref-checked when tasks/tdd.json is present."
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Repo-relative paths produced by this phase."
+          },
+          "blocked_by": {
+            "type": "string",
+            "description": "Free-form reason for status=blocked."
+          },
+          "superseded_by": {
+            "type": "string",
+            "description": "Phase id that supersedes this entry. Set when an earlier phase is closed because its scope is now owned by a later phase."
+          }
+        }
+      }
+    }
+  }
+}

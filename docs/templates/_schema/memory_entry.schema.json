@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mir/template/memory_entry",
+  "title": "Mir Memory Entry Schema",
+  "description": "Single memory record in the SoT (global/personal/project). Supports lifetime tracking, deprecation, and supersession.",
+  "type": "object",
+  "required": ["id", "type", "body", "status", "created"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Kebab/snake-case slug. Globally unique within its SoT."
+    },
+    "type": {
+      "enum": ["user", "feedback", "project", "reference", "incident"],
+      "description": "Memory category (see CLAUDE.md auto-memory types). incident is R4 addition for postmortem records."
+    },
+    "body": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The memory content (free-form markdown)."
+    },
+    "status": {
+      "enum": ["active", "deprecated", "superseded", "critical", "expired"],
+      "default": "active",
+      "description": "Lifecycle status. critical=GC-immune, expired=valid_until passed, deprecated=do not inject."
+    },
+    "superseded_by": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$",
+      "description": "id of the replacement entry. Required if status == superseded."
+    },
+    "valid_until": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO-8601 date after which the entry auto-becomes 'expired'. Absent == no expiry."
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Optional tags for filtering and selective injection."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Owner identifier (user, agent name, or 'shared')."
+    },
+    "sot": {
+      "enum": ["global", "personal", "project"],
+      "description": "Which Source of Truth this entry belongs to. Same id may exist in different sot, but body must not duplicate."
+    },
+    "created": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of creation."
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of last body change."
+    },
+    "linked": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z0-9_-]+$"},
+      "description": "Other memory entry ids this one references (cross-link, see CLAUDE.md auto-memory link syntax)."
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "superseded"}}, "required": ["status"]},
+      "then": {"required": ["superseded_by"]}
+    }
+  ]
+}

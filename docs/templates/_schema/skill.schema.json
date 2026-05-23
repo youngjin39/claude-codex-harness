@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mir Skill Frontmatter Schema (P10-F.1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "description"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "allowed-tools": {
+      "type": "string",
+      "minLength": 1
+    },
+    "compatibility": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["claude", "codex", "cursor", "gemini"]
+      },
+      "minItems": 1
+    },
+    "user-invocable": {
+      "type": "boolean"
+    },
+    "context": {
+      "type": "string",
+      "enum": ["fork", "inherit"]
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$id": "mir/template/arch",
+  "$comment": "Mir P0-E.2 Architecture template schema. Required HARD sections: 5 Excluded Patterns, 7 Failure Modes & Mitigations, 8 Verification.",
+  "frontmatter_required": ["title", "type", "created", "status"],
+  "frontmatter_type_value": "template-arch",
+  "required_sections": [
+    {"heading": "1. Context",                              "min_chars": 1, "hard": false},
+    {"heading": "2. Architecture Decisions (High-Level)",  "min_chars": 1, "hard": false},
+    {"heading": "3. Components / Modules",                 "min_chars": 1, "hard": false},
+    {"heading": "4. Boundaries / Interfaces",              "min_chars": 1, "hard": false},
+    {"heading": "5. Excluded Patterns — HARD",             "min_chars": 1, "hard": true},
+    {"heading": "6. Constraints",                          "min_chars": 1, "hard": false},
+    {"heading": "7. Failure Modes & Mitigations — HARD",   "min_chars": 1, "hard": true},
+    {"heading": "8. Verification — HARD",                  "min_chars": 1, "hard": true},
+    {"heading": "9. Open Questions",                       "min_chars": 0, "hard": false},
+    {"heading": "10. References",                          "min_chars": 0, "hard": false}
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "$id": "mir/template/prd",
+  "$comment": "Mir P0-E.2 PRD template schema. Consumed by tools/profile_compiler/validators/template_doc.py. Required HARD sections: 3 Non-Goals, 4 Will-NOT-do, 9 Acceptance Criteria.",
+  "frontmatter_required": ["title", "type", "created", "status"],
+  "frontmatter_type_value": "template-prd",
+  "required_sections": [
+    {"heading": "1. Context / Problem",         "min_chars": 1, "hard": false},
+    {"heading": "2. Goals (SMART)",             "min_chars": 1, "hard": false},
+    {"heading": "3. Non-Goals — HARD",          "min_chars": 1, "hard": true},
+    {"heading": "4. Will-NOT-do — HARD",        "min_chars": 1, "hard": true},
+    {"heading": "5. User Stories / Use Cases",  "min_chars": 1, "hard": false},
+    {"heading": "6. Functional Requirements",   "min_chars": 1, "hard": false},
+    {"heading": "7. Non-Functional Requirements","min_chars": 1, "hard": false},
+    {"heading": "8. Constraints",               "min_chars": 1, "hard": false},
+    {"heading": "9. Acceptance Criteria — HARD","min_chars": 1, "hard": true},
+    {"heading": "10. Open Questions",           "min_chars": 0, "hard": false},
+    {"heading": "11. References",               "min_chars": 0, "hard": false}
+  ]
+}

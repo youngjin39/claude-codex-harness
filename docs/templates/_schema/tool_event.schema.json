@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mir/template/tool_event",
+  "title": "Mir Tool Event Schema",
+  "description": "Single tool invocation log. Required for every side-effect tool call. Used for audit, replay, and idempotency verification.",
+  "type": "object",
+  "required": ["event_id", "run_id", "tool", "idempotency_key", "ts", "result"],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID identifier for this tool event."
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID of the parent run_state."
+    },
+    "tool": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Tool name (e.g., 'edit', 'write', 'bash', 'webfetch', 'mcp.discord.reply')."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{16,64}$",
+      "description": "Hash derived from (tool + input). Same key + same effect == safe to retry."
+    },
+    "precondition": {
+      "type": "string",
+      "description": "Expression evaluated before tool call. Empty if no precondition."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, tool runs in preview mode without side effects."
+    },
+    "side_effect_summary": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "One-line description of what changes. Required for side-effect tools."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp when the tool was invoked."
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Wall-clock duration of the tool call in milliseconds."
+    },
+    "result": {
+      "enum": ["ok", "already_applied", "error", "denied", "timeout"],
+      "description": "Outcome of the tool call. 'already_applied' indicates idempotent no-op."
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "recoverable", "summary"],
+      "properties": {
+        "type": {
+          "enum": ["validation", "precondition", "runtime", "timeout", "denied", "injection"],
+          "description": "Error class (see phase-4-state-machine.md §5)."
+        },
+        "recoverable": {
+          "type": "boolean",
+          "description": "If true, retry is safe; if false, escalate to BLOCKED or INTERRUPTED."
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "One-line human-readable error message."
+        },
+        "details_ref": {
+          "type": "string",
+          "description": "Path or id pointing to full error details (stack trace, full stderr, etc.)."
+        }
+      },
+      "description": "Required if result in [error, denied, timeout]."
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"enum": ["error", "denied", "timeout"]}}, "required": ["result"]},
+      "then": {"required": ["error"]}
+    }
+  ]
+}

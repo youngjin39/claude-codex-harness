@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ADR-10 S4 Input Specification",
+  "type": "object",
+  "required": ["kind", "source_uri", "license", "attribution"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["agent", "skill", "hook"]
+    },
+    "source_uri": {
+      "type": "string",
+      "pattern": "^(file://|git\\+https://|/).+"
+    },
+    "license": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9.-]+(-[A-Za-z0-9.-]+)*$"
+    },
+    "attribution": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_/-]+@[a-f0-9]+\\s+\\S+"
+    },
+    "source_family_slug": {
+      "type": ["string", "null"],
+      "description": "ADR-11 §S3' optional — for fleet-internal transplant, the donor family slug (e.g., career-transition). Must match a slug in config/repo-agent-management.json. Omitted for external OSS imports.",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "target_archetypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "target_management_modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

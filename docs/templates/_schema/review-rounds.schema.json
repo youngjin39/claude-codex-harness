@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mir Harness review-rounds ledger schema",
+  "description": "ADR-07 Phase 7A — PR/plan review round ledger. Separate SSOT from phase.json (harness-unit) and tdd.json (code-change-unit). Lifecycle: PR/plan-unit.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "rounds"],
+  "properties": {
+    "version": { "const": 1 },
+    "rounds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "pr_ref", "round_number", "status", "started"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^round-[a-zA-Z0-9_-]+$"
+          },
+          "pr_ref": {
+            "type": "string",
+            "pattern": "^(#[0-9]+|local-[a-z0-9-]+)$"
+          },
+          "round_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "closed", "deferred"]
+          },
+          "started": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finished": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "reviewers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "verdict"],
+              "properties": {
+                "name": { "type": "string" },
+                "verdict": {
+                  "type": "string",
+                  "enum": ["Sound", "Reroll"]
+                }
+              }
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["severity", "summary"],
+              "properties": {
+                "severity": {
+                  "type": "string",
+                  "enum": ["P0", "P1", "P2"]
+                },
+                "file": { "type": ["string", "null"] },
+                "line": {
+                  "type": ["integer", "null"],
+                  "minimum": 1
+                },
+                "summary": { "type": "string" },
+                "evidence": { "type": "string" },
+                "citation_verified": { "type": "boolean" },
+                "scope_status": {
+                  "type": "string",
+                  "enum": ["fix-now", "reroute", "escalate", "user-confirm", "false-positive"]
+                },
+                "alternatives": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "accepted": { "type": "boolean" }
+              }
+            }
+          },
+          "verdict": {
+            "type": "string",
+            "enum": ["Sound", "Reroll", "pending"]
+          },
+          "reroll_history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["reason", "at"],
+              "properties": {
+                "reason": { "type": "string" },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

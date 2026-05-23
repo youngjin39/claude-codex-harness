@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mir/template/approval",
+  "title": "Mir Approval Schema",
+  "description": "User approval gate. Created when a run enters NEED_APPROVAL state. Approval policy depends on risk_level.",
+  "type": "object",
+  "required": ["approval_id", "run_id", "status", "risk_level", "auto_policy", "requested_at"],
+  "additionalProperties": false,
+  "properties": {
+    "approval_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID identifier for this approval request."
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID of the gated run_state."
+    },
+    "status": {
+      "enum": ["PENDING", "APPROVED", "REJECTED", "EXPIRED"],
+      "description": "Approval lifecycle status."
+    },
+    "risk_level": {
+      "enum": ["low", "medium", "high"],
+      "description": "Risk classification driving the auto_policy decision."
+    },
+    "auto_policy": {
+      "enum": ["auto", "conditional", "required"],
+      "description": "Resolved policy: auto=skip approval, conditional=skip if low+precondition, required=must ask user."
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp when approval was requested."
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp when status changed from PENDING. Required if status != PENDING."
+    },
+    "decided_by": {
+      "type": "string",
+      "description": "User identifier (e.g., Discord user_id or email). Required if status in [APPROVED, REJECTED]."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp after which PENDING auto-converts to EXPIRED."
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Human-readable description of what is being approved (diff preview, side effect summary, etc.)."
+    },
+    "details_ref": {
+      "type": "string",
+      "description": "Path or id pointing to full approval context (full diff, plan, etc.)."
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"enum": ["APPROVED", "REJECTED", "EXPIRED"]}}, "required": ["status"]},
+      "then": {"required": ["decided_at"]}
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["APPROVED", "REJECTED"]}}, "required": ["status"]},
+      "then": {"required": ["decided_by"]}
+    }
+  ]
+}

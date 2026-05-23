@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mir/template/run_state",
+  "title": "Mir Run State Schema",
+  "description": "Single execution of a task. A task may have multiple runs (retries). Tracks the 9-state SM transitions per run.",
+  "type": "object",
+  "required": ["run_id", "task_id", "status", "started_at", "last_transition"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID identifier for this run."
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID of the parent task (see task_state.schema.json)."
+    },
+    "status": {
+      "enum": [
+        "IDLE",
+        "DISCOVER",
+        "PLAN",
+        "NEED_APPROVAL",
+        "ACT",
+        "VERIFY",
+        "REPORT",
+        "DONE",
+        "REPLAN",
+        "BLOCKED",
+        "CANCELLING",
+        "ROLLBACK",
+        "INTERRUPTED"
+      ],
+      "description": "Current state in the SM. 13 enum values total: 8 main flow states (IDLE/DISCOVER/PLAN/NEED_APPROVAL/ACT/VERIFY/REPORT/DONE) + 5 branch states (REPLAN/BLOCKED/CANCELLING/ROLLBACK/INTERRUPTED). 'DONE' is terminal."
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of run creation."
+    },
+    "last_transition": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of the most recent status change."
+    },
+    "current_step": {
+      "type": "string",
+      "description": "Optional identifier of the current SM step within the active state."
+    },
+    "current_lane": {
+      "enum": ["claude", "codex", "shared"],
+      "description": "Active lane during ACT/VERIFY. claude=control+judgment, codex=execution+verification, shared=both can read."
+    },
+    "retry_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total": {"type": "integer", "minimum": 0, "default": 0},
+        "verify_failures": {"type": "integer", "minimum": 0, "default": 0},
+        "patch_conflicts": {"type": "integer", "minimum": 0, "default": 0},
+        "tool_failures_same_type": {"type": "integer", "minimum": 0, "default": 0}
+      },
+      "description": "Retry budget counters (see phase-2-enforcement.md §5)."
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Absolute or repo-relative paths of artifacts produced during this run."
+    },
+    "tool_events": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"},
+      "description": "ULIDs of tool_event entries belonging to this run."
+    },
+    "approval_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Approval ULID if status == NEED_APPROVAL or was previously gated."
+    },
+    "blocked_reason": {
+      "type": "string",
+      "description": "Free-text reason recorded when entering BLOCKED state. Required if status == BLOCKED."
+    },
+    "rollback_target": {
+      "type": "string",
+      "description": "Git ref or snapshot id used for rollback. Required if status in [ROLLBACK, INTERRUPTED]."
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "BLOCKED"}}, "required": ["status"]},
+      "then": {"required": ["blocked_reason"]}
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["ROLLBACK", "INTERRUPTED"]}}, "required": ["status"]},
+      "then": {"required": ["rollback_target"]}
+    },
+    {
+      "if": {"properties": {"status": {"const": "NEED_APPROVAL"}}, "required": ["status"]},
+      "then": {"required": ["approval_id"]}
+    }
+  ]
+}
