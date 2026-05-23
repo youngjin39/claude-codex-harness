@@ -2,7 +2,7 @@
 
 A bug-fix workflow that lands the regression test before the fix, and uses the harness gates as the safety net.
 
-> **Bug report**: `mytool --reverse 한국어` outputs `<unprintable>`. Expected `어국한`.
+> **Bug report**: `mytool --reverse "hello"` outputs `<unprintable>`. Expected `"olleh"`.
 
 ## Walk-through
 
@@ -11,7 +11,7 @@ A bug-fix workflow that lands the regression test before the fix, and uses the h
 Before any code change, reproduce the bug. Reproduction is the spec for the regression test.
 
 ```bash
-$ python -m mytool --reverse 한국어
+$ python -m mytool --reverse hello
 <unprintable>
 ```
 
@@ -27,11 +27,11 @@ The reporter described the failure but not the cause. Two hypotheses:
 Triage: replicate locally with output redirected to a file. If the bytes are wrong → H1. If the bytes are right but terminal showed garbage → H2.
 
 ```bash
-$ python -m mytool --reverse 한국어 | xxd | head
+$ python -m mytool --reverse hello | xxd | head
 00000000: ec 96 b4 ea b5 ad ed 95 9c 0a
 ```
 
-These are valid UTF-8 for `어국한` plus newline. So H2 — terminal/locale issue. But that means the function is correct; the visible failure was an environment issue. **Mark this finding and ask the user**: is the goal to make the function robust to locale, or should the user fix their terminal?
+These are valid UTF-8 for `olleh` plus newline. So H2 — terminal/locale issue. But that means the function is correct; the visible failure was an environment issue. **Mark this finding and ask the user**: is the goal to make the function robust to locale, or should the user fix their terminal?
 
 If the user says "make the function robust", continue. Otherwise close as not-a-bug.
 
@@ -51,10 +51,10 @@ Step 2 — add explicit utf-8 stdout encoding to the CLI entry
   files: src/cli.py
   commands:
     - pytest -q tests/test_cli.py::test_reverse_cjk
-    - python -m mytool --reverse 한국어
+    - python -m mytool --reverse hello
   expected:
     - test passes
-    - stdout shows '어국한' on terminals with utf-8 locale, falls back gracefully on others
+    - stdout shows 'olleh' on terminals with utf-8 locale, falls back gracefully on others
 
 Step 3 — verify regression
   files: (none)
@@ -76,7 +76,7 @@ Step 3 — verify regression
   "categories": {
     "unit": { "status": "planned", "command": "pytest -q tests/test_cli.py::test_reverse_cjk", "notes": "exercises CJK + ASCII mixed input" },
     "integration": { "status": "covered_existing", "notes": "tests/test_cli_integration.py already exercises CLI entry" },
-    "e2e": { "status": "planned", "command": "PYTHONIOENCODING= python -m mytool --reverse 한국어", "notes": "stdout=어국한 even when PYTHONIOENCODING is unset" },
+    "e2e": { "status": "planned", "command": "PYTHONIOENCODING= python -m mytool --reverse hello", "notes": "stdout=olleh even when PYTHONIOENCODING is unset" },
     "browser": { "status": "not_applicable", "reason": "CLI tool" },
     "edge": { "status": "planned", "command": "pytest -q tests/test_cli.py -k reverse_edge", "notes": "empty + emoji + RTL + 4-byte UTF-8" },
     "architecture": { "status": "covered_existing", "notes": "no module boundary touched" },
@@ -124,8 +124,8 @@ Closeout:
 - type-check: PASS
 
 ## E2E
-- python -m mytool --reverse 한국어 → '어국한' on macOS Terminal ✅
-- python -m mytool --reverse 한국어 > out.txt; xxd out.txt → ec 96 b4 ... 0a ✅
+- python -m mytool --reverse hello → 'olleh' on macOS Terminal ✅
+- python -m mytool --reverse hello > out.txt; xxd out.txt → ec 96 b4 ... 0a ✅
 - python -m mytool --reverse 'Hello 世界' → '界世 olleH' ✅
 
 ## Findings

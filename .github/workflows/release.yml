@@ -1,0 +1,17 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+jobs:
+  notify_fleet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read VERSION
+        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_ENV
+      - name: Extract CHANGELOG entry
+        run: python scripts/extract_changelog_entry.py $VERSION > /tmp/release_notes.md
+      - name: Notify Mir fleet (Discord webhook)
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.MIR_FLEET_DISCORD }}
+        run: python scripts/notify_discord.py /tmp/release_notes.md

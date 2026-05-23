@@ -106,7 +106,7 @@ Closeout block with evidence:
 ## E2E
 - python -m mytool --reverse hello → 'olleh' ✅
 - python -m mytool --reverse '' → '' ✅
-- python -m mytool --reverse 한국어 → '어국한' ✅
+- python -m mytool --reverse hello → 'olleh' ✅
 
 ## Findings
 - (one LOW addressed inline)

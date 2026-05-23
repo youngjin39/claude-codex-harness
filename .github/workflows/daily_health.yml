@@ -1,0 +1,16 @@
+name: daily_health
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tools/template_health.py --report /tmp/health.json
+      - name: Notify Mir if degraded
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.MIR_FLEET_DISCORD }}
+        run: python scripts/notify_discord.py /tmp/health.json --priority

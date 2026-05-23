@@ -1,0 +1,28 @@
+name: validate
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install jsonschema
+      - run: python tests/test_schema_validity.py
+  link_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tests/test_link_integrity.py
+  hook_exec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tests/test_hook_executability.py
+  sanitize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tests/test_no_korean_in_user_facing.py

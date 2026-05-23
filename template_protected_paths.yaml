@@ -1,0 +1,13 @@
+# template_protected_paths.yaml — ci.md §2-2
+# Edit constraints for version-critical files in the claude-codex-harness template repo.
+# These paths require special review before modification.
+protected_paths:
+  - path: VERSION
+    rule: single_semver_line
+    description: "Only a single semver line allowed."
+  - path: CHANGELOG.md
+    rule: keep_a_changelog_format
+    description: "Must match Keep a Changelog format (## [X.Y.Z])."
+  - path: MIGRATION.md
+    rule: major_section_only
+    description: "Only vN -> vN+1 MAJOR section additions allowed."
