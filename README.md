@@ -18,11 +18,13 @@ so that Claude Code and Codex CLI behave like team members under the same playbo
 
 What you get out of the box:
 
-- **12-agent topology** — main-orchestrator (Claude), executor-agent (Codex), codex-final-reviewer
-  (Codex), quality-agent (Claude), fleet-doc-steward (governance), and 7 opt-in specialists
-  (CWE auditor, dependency auditor, UI reviewer, pipeline validator, ontology validator,
-  runtime-contract reviewer, template-sync validator). Each agent declares its execution backend
-  in frontmatter so the orchestrator knows exactly which CLI subprocess to use.
+- **12-agent topology (all active by default)** — main-orchestrator (Claude), executor-agent
+  (Codex), codex-final-reviewer (Codex), quality-agent (Claude), fleet-doc-steward (governance),
+  plus 7 specialists active out of the box: CWE auditor, dependency auditor, UI reviewer,
+  pipeline validator, ontology validator, runtime-contract reviewer, template-sync validator.
+  Each agent declares its execution backend in frontmatter so the orchestrator knows exactly
+  which CLI subprocess to use. Trim per-family by editing `active_agents` in
+  `config/repos/<slug>.json` when a project does not need a specialist.
 - **11-skill library** — design, verify, code-review, testing, ui-design, governance, knowledge,
   automation, efficiency, bluebricks, commit. Skills load on demand when the request matches a
   trigger keyword. No token cost when unused.
@@ -146,7 +148,7 @@ Skills load only when triggered. Body lives at `.claude/skills/<name>/SKILL.md`.
 
 ## Per-family JSON pattern
 
-The registry uses a per-family JSON split (ADR-15 v3.6):
+The registry uses a per-family JSON split (ADR-15 v3.7):
 
 ```
 config/
@@ -206,7 +208,7 @@ python3 scripts/verify_repo_agent_management.py
 │   └── repos/                  #   per-family entries (empty in template)
 │
 ├── tools/                      # harness tooling
-│   ├── catalog_loader.py       #   ADR-15 v3.6 per-family catalog aggregator
+│   ├── catalog_loader.py       #   ADR-15 v3.7 per-family catalog aggregator
 │   ├── agent_loader/           #   ADR-09 frontmatter parser + validator
 │   └── profile_compiler/       #   role-policy compiler stub (extend for your fleet)
 │

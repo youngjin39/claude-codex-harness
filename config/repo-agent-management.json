@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "catalog_revision": "v3.7",
   "purpose": "Per-repository agent-management registry for the Claude+Codex Harness Template. Fork and customize for your fleet.",
   "repositories_dir": "config/repos",
   "catalog": {

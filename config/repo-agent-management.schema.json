@@ -17,6 +17,11 @@
         2
       ]
     },
+    "catalog_revision": {
+      "type": "string",
+      "pattern": "^v[0-9]+(\\.[0-9]+)*$",
+      "description": "Catalog revision tag (e.g., v3.7). Machine-readable counterpart to family-side .mir/harness-config.json catalog_revision."
+    },
     "purpose": {
       "type": "string",
       "minLength": 1
@@ -554,6 +559,10 @@
         "notes"
       ],
       "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Optional JSON Schema $schema pointer for IDE/editor schema awareness. Strips before runtime validation by catalog_loader."
+        },
         "slug": {
           "type": "string",
           "minLength": 1
@@ -652,14 +661,17 @@
           "$ref": "#/$defs/string_list"
         },
         "active_agents": {
-          "$ref": "#/$defs/string_list"
+          "$ref": "#/$defs/string_list",
+          "description": "Base catalog agent slugs active for this family. Effective active set = (active_agents \u222a agent_overrides.add_specialists) \u2212 agent_overrides.remove_specialists. Readers MUST merge overrides \u2014 active_agents alone undercounts capability."
         },
         "active_skills": {
-          "$ref": "#/$defs/string_list"
+          "$ref": "#/$defs/string_list",
+          "description": "Base catalog skill slugs active for this family. Effective active set = (active_skills \u222a skill_overrides.add) \u2212 skill_overrides.remove \u2212 disabled_skills. Readers MUST merge overrides \u2014 active_skills alone undercounts capability."
         },
         "agent_overrides": {
           "type": "object",
           "additionalProperties": false,
+          "description": "L3 agent layer. add_specialists augments active_agents (typically with family-private or external-status catalog entries). remove_specialists subtracts. Effective agents merge per active_agents description.",
           "properties": {
             "add_specialists": {
               "$ref": "#/$defs/string_list"
@@ -682,6 +694,7 @@
         "skill_overrides": {
           "type": "object",
           "additionalProperties": false,
+          "description": "L3 skill layer. add augments active_skills (typically with family-private or external-status catalog entries). remove subtracts. Effective skills merge per active_skills description.",
           "properties": {
             "add": {
               "$ref": "#/$defs/string_list"
