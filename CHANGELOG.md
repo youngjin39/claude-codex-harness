@@ -6,6 +6,51 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 Pre-`v0.1.0` entries (below) used date-format headings (`## 2026.05.x`) and are kept for historical reference. All future entries use the `## [vN.M.X] — YYYY-MM-DD — title` format.
 
+## [0.3.0] — 2026-05-24 — Phase-4 state machine modules
+
+Synced upstream Mir R18+R20+R21 phase-4 state machine implementation.
+
+### Added
+
+- `tools/run_orchestrator/state_machine.py` — 13-state SM (`RunState`
+  StrEnum: IDLE/DISCOVER/PLAN/NEED_APPROVAL/ACT/VERIFY/REPORT/DONE/REPLAN/
+  BLOCKED/CANCELLING/ROLLBACK/INTERRUPTED) + `RUN_TRANSITIONS` table.
+- `tools/run_orchestrator/run_orchestrator.py` — `run_state.json` driver
+  (init_run + transition + get_current_state + record_tool_event) with
+  ULID generation + atomic write + jsonschema validation.
+- `tools/run_orchestrator/approval_gate.py` — Discord-delegated approval
+  (request_approval + parse_reply + apply_decision). Zero network calls.
+- `tools/hooks/validate_tool_contract.py` — pre-tool-use hook validator
+  (env-gated by `MIR_TOOL_CONTRACT_REQUIRED` or `MIR_TOOL_CONTRACT_LOG`).
+- `src/mir/core/engine/structured_error.py` — `StructuredError` frozen
+  dataclass + `ErrorType` StrEnum (7 members) for unified error format.
+- `src/mir/core/engine/tool_contract.py` — `ToolContract` 4-field obligatory
+  metadata (idempotency_key, precondition, dry_run, side_effect_summary).
+- `src/mir/core/engine/interrupt_handler.py` — git stash-based atomic
+  rollback for ACT→CANCELLING→ROLLBACK→INTERRUPTED transitions.
+
+### Changed
+
+- `docs/templates/_schema/run_state.schema.json` — added `session_id` +
+  `current_step_id` (optional ULID per phase-4 5-tier execution unit spec).
+- `docs/templates/_schema/tool_event.schema.json` — added `turn_id`
+  (REQUIRED ULID) + `step_id` (optional).
+- `docs/templates/_schema/task_state.schema.json` — added
+  `origin_session_id` (optional ULID).
+- `docs/templates/_schema/approval.schema.json` — added DENIED/DELAYED to
+  status enum + auto_policy oneOf + discord_chat_id / denial_reason /
+  delay_reason fields.
+
+### Notes
+
+- Phase-4 state machine is opt-in via `python -m tools.run_orchestrator --use-13-state`.
+- Default `cli.py` behavior remains 7-state (backward compat per ADR-44).
+- Tool contract validation is OFF by default; activate via
+  `.claude/settings.json` env `MIR_TOOL_CONTRACT_REQUIRED=1` (enforce) or
+  `MIR_TOOL_CONTRACT_LOG=1` (advisory only).
+- This release tracks upstream Mir R18 (`393ce52`) + R20 (`be8873f`) + R21 (`c4b8388`).
+- 0 Korean leakage across all synced surfaces.
+
 ## [0.2.0] — 2026-05-24 — R17 fleet rollout hook sync
 
 Synced upstream Mir-self hook updates from the R17 fleet phase rollout.

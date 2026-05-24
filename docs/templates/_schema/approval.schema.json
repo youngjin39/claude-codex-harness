@@ -18,16 +18,38 @@
       "description": "ULID of the gated run_state."
     },
     "status": {
-      "enum": ["PENDING", "APPROVED", "REJECTED", "EXPIRED"],
-      "description": "Approval lifecycle status."
+      "enum": ["PENDING", "APPROVED", "DENIED", "DELAYED", "EXPIRED"],
+      "description": "Approval lifecycle status. DENIED=user rejected. DELAYED=user deferred. EXPIRED=timeout."
     },
     "risk_level": {
       "enum": ["low", "medium", "high"],
       "description": "Risk classification driving the auto_policy decision."
     },
     "auto_policy": {
-      "enum": ["auto", "conditional", "required"],
-      "description": "Resolved policy: auto=skip approval, conditional=skip if low+precondition, required=must ask user."
+      "description": "Policy object controlling timeout behaviour and default action.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["on_timeout", "timeout_minutes"],
+          "additionalProperties": false,
+          "properties": {
+            "on_timeout": {
+              "enum": ["deny", "proceed", "escalate"],
+              "description": "Action when timeout_minutes elapses without user reply."
+            },
+            "timeout_minutes": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Minutes before auto_policy.on_timeout fires."
+            }
+          }
+        },
+        {
+          "type": "string",
+          "enum": ["auto", "conditional", "required"],
+          "description": "Legacy string form for backward compatibility."
+        }
+      ]
     },
     "requested_at": {
       "type": "string",
@@ -41,7 +63,7 @@
     },
     "decided_by": {
       "type": "string",
-      "description": "User identifier (e.g., Discord user_id or email). Required if status in [APPROVED, REJECTED]."
+      "description": "User identifier (e.g., Discord user_id or email). Optional."
     },
     "expires_at": {
       "type": "string",
@@ -56,16 +78,26 @@
     "details_ref": {
       "type": "string",
       "description": "Path or id pointing to full approval context (full diff, plan, etc.)."
-    }
-  },
-  "allOf": [
-    {
-      "if": {"properties": {"status": {"enum": ["APPROVED", "REJECTED", "EXPIRED"]}}, "required": ["status"]},
-      "then": {"required": ["decided_at"]}
     },
-    {
-      "if": {"properties": {"status": {"enum": ["APPROVED", "REJECTED"]}}, "required": ["status"]},
-      "then": {"required": ["decided_by"]}
+    "discord_chat_id": {
+      "type": "string",
+      "description": "Discord channel/thread chat_id where the approval request was sent."
+    },
+    "discord_message_id_request": {
+      "type": "string",
+      "description": "Discord message_id of the approval request message (ULID or Discord snowflake)."
+    },
+    "discord_message_id_response": {
+      "type": "string",
+      "description": "Discord message_id of the user's reply (set after user replies)."
+    },
+    "denial_reason": {
+      "type": "string",
+      "description": "Reason provided by user when status=DENIED."
+    },
+    "delay_reason": {
+      "type": "string",
+      "description": "Reason provided by user when status=DELAYED."
     }
-  ]
+  }
 }

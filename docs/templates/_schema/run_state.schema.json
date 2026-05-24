@@ -45,9 +45,19 @@
       "format": "date-time",
       "description": "ISO-8601 UTC timestamp of the most recent status change."
     },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Optional ULID of the parent Session (Claude Code session). Per phase-4-5tier-execution-units.md."
+    },
     "current_step": {
       "type": "string",
       "description": "Optional identifier of the current SM step within the active state."
+    },
+    "current_step_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Optional ULID of the current Step. Alongside `current_step` (free-form) for backward compat. Promote to ULID per R19+ migration timeline."
     },
     "current_lane": {
       "enum": ["claude", "codex", "shared"],
@@ -100,6 +110,10 @@
     {
       "if": {"properties": {"status": {"const": "NEED_APPROVAL"}}, "required": ["status"]},
       "then": {"required": ["approval_id"]}
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["ACT", "VERIFY"]}}, "required": ["status"]},
+      "then": {"required": ["current_lane"]}
     }
   ]
 }

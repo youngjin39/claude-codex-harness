@@ -4,7 +4,7 @@
   "title": "Mir Tool Event Schema",
   "description": "Single tool invocation log. Required for every side-effect tool call. Used for audit, replay, and idempotency verification.",
   "type": "object",
-  "required": ["event_id", "run_id", "tool", "idempotency_key", "ts", "result"],
+  "required": ["event_id", "run_id", "turn_id", "tool", "idempotency_key", "ts", "result"],
   "additionalProperties": false,
   "properties": {
     "event_id": {
@@ -16,6 +16,16 @@
       "type": "string",
       "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
       "description": "ULID of the parent run_state."
+    },
+    "turn_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID of the atomic operation (1 LLM call or 1 tool invoke). Per phase-4-5tier-execution-units.md."
+    },
+    "step_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Optional ULID of the parent Step (becomes required in R21+ once run_state.current_step_id is canonical)."
     },
     "tool": {
       "type": "string",
@@ -40,6 +50,18 @@
       "type": "string",
       "maxLength": 500,
       "description": "One-line description of what changes. Required for side-effect tools."
+    },
+    "provider": {
+      "type": "string",
+      "description": "OpenTelemetry gen_ai.provider — LLM/MCP provider name (e.g., 'anthropic', 'openai-codex', 'mcp.discord'). R7-C-W5 신설: OTel GenAI namespace 호환 (phase-6 §6 ADR 후보 29 의무 채택)."
+    },
+    "model": {
+      "type": "string",
+      "description": "OpenTelemetry gen_ai.request.model — model identifier (e.g., 'claude-opus-4-7', 'gpt-4o'). R7-C-W5 신설."
+    },
+    "operation": {
+      "type": "string",
+      "description": "OpenTelemetry gen_ai.operation.name — operation type (e.g., 'chat', 'tool_call', 'embedding', 'file_edit'). R7-C-W5 신설."
     },
     "ts": {
       "type": "string",

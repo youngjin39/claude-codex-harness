@@ -72,12 +72,41 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO-8601 UTC timestamp of COMPLETED status. Required if status == COMPLETED."
+    },
+    "design_doc_ref": {
+      "type": "string",
+      "description": "Path to design_doc artifact (docs/decisions/adr-*.md OR docs/harness-engineering/phase-*.md) — R10-R1 신설 per ADR-33. Required when task_type=code_execution AND risk_level in {medium, high}. design-complete-gate.sh hook (R11) 가 enforce."
+    },
+    "task_subtype": {
+      "enum": ["code", "audit", "review", "design", "chat", "clarify", "incident_response", "autonomous_loop"],
+      "description": "8-way sliding window subtype lookup (phase-3-memory-context.md §8-1). Optional — maps to task_type via the same §8-1 table. R10-R1 신설."
+    },
+    "sliding_window_n": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 100,
+      "description": "Sliding window turn count for context retention (phase-3 §8-1). Derived from task_subtype lookup. R10-R1 신설."
+    },
+    "origin_session_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Optional ULID of the Session this Task originated in. Per phase-4-5tier-execution-units.md."
     }
   },
   "allOf": [
     {
       "if": {"properties": {"status": {"const": "COMPLETED"}}, "required": ["status"]},
       "then": {"required": ["completed_at"]}
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": {"const": "code_execution"},
+          "risk_level": {"enum": ["medium", "high"]}
+        },
+        "required": ["task_type", "risk_level"]
+      },
+      "then": {"required": ["design_doc_ref"]}
     }
   ]
 }
