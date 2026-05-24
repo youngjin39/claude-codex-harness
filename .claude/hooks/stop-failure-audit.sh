@@ -43,7 +43,7 @@ log_filename = f"stop-failure-{ts}-{pid}-{rand_hex}.log"
 try:
     sessions_dir.mkdir(parents=True, exist_ok=True)
 except OSError as exc:
-    sys.stderr.write(f"[harness stop-failure-audit] cannot create dir: {exc}\n")
+    sys.stderr.write(f"[mir stop-failure-audit] cannot create dir: {exc}\n")
     sys.exit(0)
 
 log_path = sessions_dir / log_filename
@@ -64,7 +64,7 @@ payload = {
 try:
     log_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 except OSError as exc:
-    sys.stderr.write(f"[harness stop-failure-audit] cannot write log: {exc}\n")
+    sys.stderr.write(f"[mir stop-failure-audit] cannot write log: {exc}\n")
 
 # Always exit 0 — StopFailure hook output is ignored by Claude Code per docs.
 sys.exit(0)

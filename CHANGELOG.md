@@ -6,6 +6,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 Pre-`v0.1.0` entries (below) used date-format headings (`## 2026.05.x`) and are kept for historical reference. All future entries use the `## [vN.M.X] — YYYY-MM-DD — title` format.
 
+## [0.2.0] — 2026-05-24 — R17 fleet rollout hook sync
+
+Synced upstream Mir-self hook updates from the R17 fleet phase rollout.
+
+### Changed
+
+- `.claude/hooks/mir-stop.sh` — updated to match upstream R17 baseline.
+- `.claude/hooks/pre-commit-verification.sh` — updated to match upstream R17 baseline.
+- `.claude/hooks/pre-tool-use.sh` — updated to match upstream R17 baseline (includes phase-2 enforcement domain pinning + code-path config helper).
+- `.claude/hooks/session-start.sh` — updated to match upstream R17 baseline.
+- `.claude/hooks/stop-failure-audit.sh` — updated to match upstream R17 baseline.
+- `.claude/hooks/tdd-task-created.sh` / `tdd-task-completed.sh` — updated to match upstream R17 baseline.
+
+### Added
+
+- `.claude/hooks/lib/code-path-config.py` — helper for per-family enforced code-path resolution + ADR-23 dogfooding exemption check.
+
+### Notes
+
+- 0 Korean leakage verified across all synced hook surfaces.
+- All synced hooks have backup files in upstream Mir under `<hook>.r17-backup-2026-05-24` (not included in template).
+- This release tracks upstream Mir R17 (commits `be420d0`~`76b9d57`).
+
 ## [0.1.0] — 2026-05-23 — PROMOTE-R5a (schemas + light ADR)
 
 Initial semver release. First sanitized promote of upstream Mir-self harness-engineering work to the public template (rounds R5 through R10-R3 backlog is tracked at [`tasks/role_b_backlog.md`](https://github.com/youngjin39/claude-codex-harness/blob/main/tasks/role_b_backlog.md) in the upstream repo).

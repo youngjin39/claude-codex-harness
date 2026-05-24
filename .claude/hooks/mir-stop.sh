@@ -1,7 +1,7 @@
 #!/bin/bash
 # mir-stop.sh
 # Claude Stop hook: write audit log entry to tasks/sessions/stop-<ISO8601>-<pid>-<rand>.log.
-# Optional Stop hook — implement per your harness. Alternative C: MVP audit-only mode.
+# ADR: docs/decisions/p0j2-claude-stop-hook-2026-05-09.md (Alternative C, MVP audit-only).
 # NEVER exits non-zero — Stop hook must never block session termination.
 
 set -u
@@ -81,9 +81,19 @@ fi
 
 rm -f "$_PY_TMP"
 
-# Optional: implement your own review gate here.
-# Example: if [ "${HARNESS_REVIEW_GATE:-0}" = "1" ]; then
-#   <invoke your review tool or script>
-# fi
+# P2.5: optional review gate — gated by MIR_REVIEW_GATE env var.
+# ADR: docs/decisions/p2-5-l5-review-gate-2026-05-10.md (Alternative B).
+# NEVER blocks exit 0 — all executor errors are silenced with || true.
+if [ "${MIR_REVIEW_GATE:-0}" = "1" ]; then
+    _REVIEW_TS="$(date -u +%Y%m%dT%H%M%SZ 2>/dev/null || printf 'ts')"
+    _LAST_MSG_HASH="$(printf '%s' "${STDIN_DATA}" | shasum 2>/dev/null | cut -c1-12 || printf 'nohash')"
+    python3 -m tools.mir_executor execute \
+        --background \
+        --change-id "auto-review-${_REVIEW_TS}-${_LAST_MSG_HASH}" \
+        --category review \
+        --codex-args "exec --review" \
+        --family mir-harness \
+        2>/dev/null || true
+fi
 
 exit 0
