@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mir-harness.local/schemas/fleet_harness_state.schema.json",
+  "title": "Fleet Harness State (Central Catalog)",
+  "description": "R9-T06 . 17 family  harness engineering adoption state  catalog. Mir  ·share ,  X. phase-9-fleet-catalog.md SoT.",
+  "type": "object",
+  "required": ["version", "last_updated", "families"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema $schema pointer for IDE/editor schema awareness."
+    },
+    "_comment_": {
+      "type": "string",
+      "description": "Free-form maintenance / reseed history note. Optional human-readable annotation."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Schema version. R9 = 1.0"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "template_version": {
+      "type": "string",
+      "description": "   public template (claude-codex-harness) version (semver)"
+    },
+    "families": {
+      "type": "object",
+      "description": "key = family name (e.g. mir-harness, shortmoviedirector)",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*[a-z0-9]$": { "$ref": "#/$defs/family_state" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "family_state": {
+      "type": "object",
+      "required": ["family_type", "adoption", "innovations", "recommendations_received"],
+      "additionalProperties": false,
+      "properties": {
+        "_physical_state_2026-05-23_": {
+          "type": "string",
+          "description": "Optional inline annotation about physical reality (e.g., R10-R3 SoT reconcile snapshot). Documentation-only."
+        },
+        "family_type": {
+          "type": "string",
+          "enum": ["SE-product", "SE-meta", "content_app", "code_app", "hybrid_pipeline", "template"],
+          "description": "ADR-21 6-type canonical enum. template = public reusable harness skeleton."
+        },
+        "sealed": {
+          "type": "boolean",
+          "default": false,
+          "description": "feedback_sealed_repo_policy_2026_05_23  5  family "
+        },
+        "sealed_policy": {
+          "type": "boolean",
+          "default": false,
+          "description": "feedback_sealed_repo_policy_2026_05_23 policy flag (push  ). sealed    ."
+        },
+        "repo_path": {
+          "type": "string",
+          "description": "absolute path to family repo. Mir-self   repo path."
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Family    (free-form operator description)."
+        },
+        "character": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Family character tags (e.g., 'mobile-app', 'content-writing'). Free-form classification labels."
+        },
+        "adoption": {
+          "type": "object",
+          "description": "phase-N → adoption status. key = phase-0 ~ phase-13. phase-13 is the R30 applied-state closure lane for mir-self/template consistency.",
+          "patternProperties": {
+            "^phase-([0-9]|1[0-3])$": { "$ref": "#/$defs/phase_adoption" }
+          },
+          "additionalProperties": false
+        },
+        "innovations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/innovation" }
+        },
+        "recommendations_received": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recommendation" }
+        }
+      }
+    },
+    "phase_adoption": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "not_adopted",
+            "opt_in_pending",
+            "adopted",
+            "declined",
+            "superseded",
+            "n_a"
+          ],
+          "description": "Mir  enforce  . family  . n_a  family_type   ."
+        },
+        "last_sync": {
+          "type": "string",
+          "format": "date"
+        },
+        "drift": {
+          "type": "string",
+          "pattern": "^(none|minor:.*|major:.*)$",
+          "description": "template baseline  . 'none' / 'minor:reason' / 'major:reason'."
+        },
+        "adopted_version": {
+          "type": "string",
+          "description": "phase  version   (template version )"
+        },
+        "family_override": {
+          "type": "object",
+          "description": "family-specific override (: enabled_hooks, strictness)",
+          "additionalProperties": true
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-form operator note for this phase adoption (e.g., 'Mir-self source — phase-2 enforcement')."
+        }
+      }
+    },
+    "innovation": {
+      "type": "object",
+      "required": ["id", "kind", "detected_at", "share_status"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": ["skill", "hook", "agent", "phase_pattern", "config_field"]
+        },
+        "phase": {
+          "type": "string",
+          "description": " phase  innovation "
+        },
+        "path": { "type": "string" },
+        "detected_at": { "type": "string", "format": "date-time" },
+        "share_status": {
+          "type": "string",
+          "enum": ["candidate", "recommended", "absorbed_to_mir", "promoted_to_template", "archived", "rejected"],
+          "description": "phase-11 §3 Triage 4 "
+        },
+        "source": {
+          "type": "string",
+          "description": " family name"
+        },
+        "diff_summary": { "type": "string" },
+        "user_decision_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "required": ["id", "source_family", "decision"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "innovation id  " },
+        "source_family": { "type": "string" },
+        "decision": {
+          "type": "string",
+          "enum": ["pending", "adopted", "declined", "superseded"],
+          "default": "pending"
+        },
+        "due": { "type": "string", "format": "date", "description": "pending timeout (30d)" },
+        "decided_at": { "type": "string", "format": "date-time" },
+        "rationale": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,86 +1,61 @@
-# Workspace rules — Codex CLI side
+<!-- GENERATED FILE: edit CLAUDE.md and rerun scripts/generate_codex_derivatives.sh -->
 
-This file is read by Codex CLI on every session. CLAUDE.md mirrors it for Claude Code.
+# Codex Project Instructions
 
-The two files express the same policy. Codex CLI's hook surface is 8 events (a strict subset
-of Claude's 29), and Codex's tool naming uses `apply_patch` where Claude uses `Edit` / `Write`.
 
-## Role policy
+## Source Of Truth
+- Edit `CLAUDE.md`, `.claude/agents/*`, `.claude/skills/*`.
+- Do not hand-edit `AGENTS.md`, `.codex/`, or `.agents/`.
 
-Two CLIs, two lanes:
+## Startup
+- Read the startup context files required by the local Claude workflow before acting.
+- Use generated Codex skills first.
+- If derived files are stale, regenerate from Claude source.
 
-| Lane | Default CLI | Responsibilities |
-|---|---|---|
-| Control plane | Claude Code | conversation, planning, dispatch, judgment |
-| Execution plane | Codex CLI | code writing, TDD execution, review |
+- Skills: `bluebricks, code-review, commit, design, efficiency, governance, knowledge, automation, testing, ui-design, verify`
 
-You are Codex. Default = you write code, Claude orchestrates. Override only when:
-- the user explicitly requests Claude-direct execution,
-- you have failed the task after defined retries,
-- the task is documented as non-code (Claude takes it).
+# Claude+Codex Harness Template — Opinionated Claude Code Starter
 
-Record every override in `tasks/plan.md` with a one-line reason.
+## Required Reads
+- `tasks/plan.md`
+- `tasks/lessons.md`
+- `docs/memory-map.md`
+- `docs/decisions/role-policy.md`
 
-## Workflow pipeline
+## Build & Run
+- Starter-only configuration. Update commands when a concrete code product is added.
 
-```
-Claude dispatches a task → you receive scope + TDD ledger entry
-  ├─ implementation → write code → run TDD → report pass/fail
-  ├─ review        → read diff → produce findings list (severity + file:line)
-  └─ TDD design    → propose category coverage matrix → return for approval
-```
+## AI Development Harness
+- Non-code tasks follow `.ai-harness/common-ai-rules.md` and `.ai-harness/session-closeout.md`.
+- Code-writing, debugging, refactoring, architecture review, repository exploration, and test generation must load `bluebricks` first.
+- Code-development safeguards live in `.ai-harness/development-ai-rules.md`, `.ai-harness/bluebricks.md`, `.ai-harness/tdd-matrix.md`, `.ai-harness/deny-list.yaml`, and `.ai-harness/failure-patterns.md`.
+- Code-development proof rule: design first, then maintain `tasks/tdd.json`, then implementation, then executed TDD evidence as the primary proof of correctness.
 
-You do not write the plan, you execute it. If the plan is wrong, surface that as a finding
-— do not silently fix it.
+## Project Structure
+- Root control files: `CLAUDE.md`, `AGENTS.md`, `.mcp.json`, `setup.sh`, `README.md`
+- Harness rules: `.ai-harness/`
+- Runtime source: `.claude/`
+- Working state: `tasks/`
+- Long-term memory: `docs/`
 
-## Hook surface (Codex side, 8 events)
-
-Configured in `.codex/hooks.json`. Identical scripts to the Claude side for the 8 shared events.
-
-| Event | Hook script | Purpose |
-|---|---|---|
-| `PreToolUse` | `.claude/hooks/pre-tool-use.sh` | deny-list + TDD-guard |
-| `PostToolUse` | `.claude/hooks/post-edit-check.sh` | debug + credential scan |
-| `SessionStart` | `.claude/hooks/session-start.sh` | load plan/lessons/snapshot |
-| `Stop` | `.claude/hooks/mir-stop.sh` | stop audit |
-| `PreCompact` | `.claude/hooks/pre-compact.sh` | auto-handoff |
-| `PermissionRequest` | `.claude/hooks/pre-tool-use.sh` | same deny-list |
-
-`TaskCreated`, `TaskCompleted`, `StopFailure` are Claude-only — Codex does not have them.
-
-## Gates
-
-Same enforcement as the Claude side. The pre-tool-use script is shared.
-
-- **PreToolUse** denies destructive shell + protected paths.
-- **TDD-guard** blocks `apply_patch` to `src/`, `app/`, `lib/` files not in `tasks/tdd.json` targets.
-- **PreCommitVerification** blocks `git commit` until ledger categories are pass/covered_existing/not_applicable.
-- **PostToolUse** scans for debug + credential leaks (warning only).
-
-If a gate blocks you, surface the block in your output. Do not retry the same call.
-
-## Output discipline
-
-- Code review output: severity-tagged list. Format: `[P0|P1|P2] file:line — finding — suggested fix`.
-- Implementation output: terse summary + diff stats + which TDD ledger categories transition to `pass`.
-- TDD design output: 12-category matrix (`unit`, `integration`, `e2e`, `browser`, `edge`, `architecture`, `availability`, `load`, `soak`, `security`, `compatibility`, `transaction_locking`). Each row: pass/covered_existing/not_applicable with a reason.
-
-Empty categories are a code smell. The 12 categories exist because most reviewers skip half of them when freed to compose ad hoc.
-
-## Surgical change rules
-
-- Edit only the files listed in the ledger entry's `targets`.
-- Match existing style; do not reformat unrelated code.
-- No speculative refactors. Bug fix means the bug, not the cleanup.
-- No silent error swallowing. If you wrap something in try/except, the except branch must log or re-raise — never `pass`.
-- No new dependencies without an entry in `docs/decisions/`.
-
-## When you disagree with the plan
-
-You produce a finding, not a workaround. Send it back to Claude with severity, evidence, and a recommendation. The plan author owns the resolution.
+## Workflow
+- 0 specificity signals: load `design` skill (interview subtype).
+- Simple non-code work: execute directly + self-check.
+- Before development-changing execution, classify the task as `tiny`, `normal`, or `heavy`.
+- Development-changing work defaults to a harness-structured design pass first, even when the request is specific.
+- `tiny` tasks may execute without a formal phase or slice when the overhead would outweigh the value, but they still need a clear verification step.
+- `normal` and `heavy` tasks should prefer explicit phases or bounded slices before execution.
+- Simple code task: short `design` pass → Codex execution + TDD + review.
+- Complex 3+ step work: `design` → Codex execution lane → Codex review lane → `verify`.
+- Harness docs, phases, ADRs, skills, agents, template sync, fleet rollout/share, repo-wide policy, and generated-surface changes must route through `design` before execution.
+- Use `ui-design` before any real UI work.
+- `automation` is the default for long-running or restartable work.
+- Delegated, restartable, or 3+ step work should emit a persisted `DispatchBrief` or equivalent handoff artifact before the execution lane starts.
+- Sub-agent contracts must stay pinned by regression tests.
 
 ## Subagent Resource Management
 - Default live subagent cap = 2. Raise it only when Claude/Codex lanes are clearly independent and the current lane is healthy.
+- Design-process work may raise the live cap to 4 without separate user approval when Step 2 parallel analysis and Step 4 independent verification both need coverage; record the temporary cap in `tasks/plan.md` or the active handoff note.
 - Prefer `fork_context: false` for bounded harness docs, config, or verifier work. Use `fork_context: true` only for broad role-policy review, runtime-contract review, or independent final verification.
 - Close completed, timed-out, or errored subagents before the next wave so experiments do not leave stale lanes open.
 - If `spawn_agent` returns capacity or thread-limit errors, stop parallel expansion, reduce ownership to one harness surface per subagent, retry one subagent at a time, and record degraded mode in the active plan or handoff.
@@ -93,7 +68,44 @@ You produce a finding, not a workaround. Send it back to Claude with severity, e
 - **Advisory domain** — Hook-loose / non-enforced:
   - `.claude/agents/`, `.claude/skills/`, `config/repo-agent-management.json`, `docs/`, `tasks/`: direct edits allowed. Verifier (`scripts/verify_repo_agent_management.py`) emits advisory WARN/INFO only.
   - Monthly catalog review cadence: no cron, no auto-fire. fleet-doc-steward surfaces reminders to `tasks/checklist.md`.
-- **Principle**: Core design (catalog / skill / agent / orchestration) must not depend on hooks for correctness. Hooks add (a) TDD enforcement on code surfaces, (b) Codex execution lane routing, and (c) verification automation.
+- **Principle**: Core design (catalog / skill / agent / orchestration) must not depend on hooks for correctness. Hooks add (a) TDD enforcement on code surfaces, (b) Codex execution lane routing, and (c) verification automation. Hook enforcement must not leak into core design execution.
+
+## Runtime Role Policy
+- Claude default: requirements clarification, architecture, design approval, orchestration, planning, dispatch, exception handling, final merge judgment.
+- Codex default: code writing, code modification, composite TDD execution, deterministic verification, and code review.
+- Runtime role swap is conditional, not symmetric by default.
+- Record every runtime override in `tasks/plan.md` or the active handoff note.
+- Project-level policy revision is a separate path.
+- Long-term policy changes must update `docs/decisions/role-policy.md`, this file, and its regressions together.
+
+## Language Protocol
+- User-facing output: match your team's language convention.
+- Internal docs, code, commits, and handoffs: English.
+- Keep progress updates short and scannable.
+
+## Surgical Change Rules
+- Do not touch code outside the requested scope.
+- Do not improve adjacent code or formatting without need.
+- Do not refactor working code unless requested.
+- Report dead code; do not delete it without instruction.
+- No speculative abstractions or impossible-case error handling.
+
+## Principles
+- Default is no-action without evidence.
+- Simplicity first.
+- Fix root causes.
+- Explicit prohibitions beat vague guidance.
+- No filler.
+- Terse by default for routine prose, but never at the cost of safety, exact technical strings, review contracts, user clarity, or directly answering the user.
+- If the user asks for explanation or status, provide the minimum explanation or status needed to answer directly. Never answer with silence.
+
+## Mir Central Management
+- This repository is part of Mir's active managed fleet.
+- Mir must inspect the current harness structure before rollout changes, apply the minimum viable harness/agent patch directly, verify the repository, and maintain the latest rollout report.
+- Keep source-of-truth edits in `CLAUDE.md`; do not hand-edit generated `AGENTS.md`.
+- The deeper rollout default is `DispatchBrief` plus tiny, normal, and heavy triage. See `docs/harness-engineering/applications/dispatchbrief-defaults-2026-05-28.md`.
+- Record the latest rollout state in `tasks/reports/claude-codex-harness_harness_rollout_2026-05-28.md`.
+- If this repository needs a narrower rollout than the fleet default, document the exception in the rollout report before deviating.
 
 ## Role Policy (Template Profile)
 

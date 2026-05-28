@@ -25,14 +25,21 @@
 ## Workflow
 - 0 specificity signals: load `design` skill (interview subtype).
 - Simple non-code work: execute directly + self-check.
-- Simple code task: Claude triage/control, Codex execution + TDD + review.
+- Before development-changing execution, classify the task as `tiny`, `normal`, or `heavy`.
+- Development-changing work defaults to a harness-structured design pass first, even when the request is specific.
+- `tiny` tasks may execute without a formal phase or slice when the overhead would outweigh the value, but they still need a clear verification step.
+- `normal` and `heavy` tasks should prefer explicit phases or bounded slices before execution.
+- Simple code task: short `design` pass → Codex execution + TDD + review.
 - Complex 3+ step work: `design` → Codex execution lane → Codex review lane → `verify`.
+- Harness docs, phases, ADRs, skills, agents, template sync, fleet rollout/share, repo-wide policy, and generated-surface changes must route through `design` before execution.
 - Use `ui-design` before any real UI work.
 - `automation` is the default for long-running or restartable work.
+- Delegated, restartable, or 3+ step work should emit a persisted `DispatchBrief` or equivalent handoff artifact before the execution lane starts.
 - Sub-agent contracts must stay pinned by regression tests.
 
 ## Subagent Resource Management
 - Default live subagent cap = 2. Raise it only when Claude/Codex lanes are clearly independent and the current lane is healthy.
+- Design-process work may raise the live cap to 4 without separate user approval when Step 2 parallel analysis and Step 4 independent verification both need coverage; record the temporary cap in `tasks/plan.md` or the active handoff note.
 - Prefer `fork_context: false` for bounded harness docs, config, or verifier work. Use `fork_context: true` only for broad role-policy review, runtime-contract review, or independent final verification.
 - Close completed, timed-out, or errored subagents before the next wave so experiments do not leave stale lanes open.
 - If `spawn_agent` returns capacity or thread-limit errors, stop parallel expansion, reduce ownership to one harness surface per subagent, retry one subagent at a time, and record degraded mode in the active plan or handoff.
@@ -73,6 +80,16 @@
 - Fix root causes.
 - Explicit prohibitions beat vague guidance.
 - No filler.
+- Terse by default for routine prose, but never at the cost of safety, exact technical strings, review contracts, user clarity, or directly answering the user.
+- If the user asks for explanation or status, provide the minimum explanation or status needed to answer directly. Never answer with silence.
+
+## Mir Central Management
+- This repository is part of Mir's active managed fleet.
+- Mir must inspect the current harness structure before rollout changes, apply the minimum viable harness/agent patch directly, verify the repository, and maintain the latest rollout report.
+- Keep source-of-truth edits in `CLAUDE.md`; do not hand-edit generated `AGENTS.md`.
+- The deeper rollout default is `DispatchBrief` plus tiny, normal, and heavy triage. See `docs/harness-engineering/applications/dispatchbrief-defaults-2026-05-28.md`.
+- Record the latest rollout state in `tasks/reports/claude-codex-harness_harness_rollout_2026-05-28.md`.
+- If this repository needs a narrower rollout than the fleet default, document the exception in the rollout report before deviating.
 
 ## Role Policy (Template Profile)
 

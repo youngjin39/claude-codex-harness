@@ -53,15 +53,15 @@
     },
     "provider": {
       "type": "string",
-      "description": "OpenTelemetry gen_ai.provider — LLM/MCP provider name (e.g., 'anthropic', 'openai-codex', 'mcp.discord'). R7-C-W5 신설: OTel GenAI namespace 호환 (phase-6 §6 ADR 후보 29 의무 채택)."
+      "description": "OpenTelemetry gen_ai.provider — LLM/MCP provider name (e.g., 'anthropic', 'openai-codex', 'mcp.discord'). R7-C-W5 : OTel GenAI namespace  (phase-6 §6 ADR  29  )."
     },
     "model": {
       "type": "string",
-      "description": "OpenTelemetry gen_ai.request.model — model identifier (e.g., 'claude-opus-4-7', 'gpt-4o'). R7-C-W5 신설."
+      "description": "OpenTelemetry gen_ai.request.model — model identifier (e.g., 'claude-opus-4-7', 'gpt-4o'). R7-C-W5 ."
     },
     "operation": {
       "type": "string",
-      "description": "OpenTelemetry gen_ai.operation.name — operation type (e.g., 'chat', 'tool_call', 'embedding', 'file_edit'). R7-C-W5 신설."
+      "description": "OpenTelemetry gen_ai.operation.name — operation type (e.g., 'chat', 'tool_call', 'embedding', 'file_edit'). R7-C-W5 ."
     },
     "ts": {
       "type": "string",

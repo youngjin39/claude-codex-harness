@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mir/template/family_config",
+  "title": "Mir Family Config Schema (design artifact)",
+  "description": "Design-time schema for cross-family enforcement configuration. Defines enabled_phases and hooks_enabled fields referenced by applications/template-cherrypick.md §4-1 and applications/exceptions.md §5. R7-D-W5  —  schema  design-only artifact .  `config/repos/<family>.json` (`config/repo-agent-management.schema.json` )     schema      .  schema     .",
+  "type": "object",
+  "required": ["family_id", "enabled_phases"],
+  "additionalProperties": true,
+  "properties": {
+    "family_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
+      "description": "Family identifier matching `config/repos/<family_id>.json`."
+    },
+    "enabled_phases": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "required": ["phase", "strictness", "enabled_at"],
+        "additionalProperties": false,
+        "properties": {
+          "phase": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 12,
+            "description": "Family rollout phase number 0-12 from docs/harness-engineering/phase-N-*.md. phase-13 is excluded here because it is the R30 mir-self/template applied-state closure lane, not a per-family enabled_phases target."
+          },
+          "strictness": {
+            "enum": ["enforced", "doc-strict", "warn", "off"],
+            "description": "Per-phase strictness (R4 4-tier vocabulary, see applications/exceptions.md §3). 'doc-strict' is Phase 0 only."
+          },
+          "enabled_at": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO-8601 date when this phase was enabled for this family."
+          },
+          "enabled_by": {
+            "type": "string",
+            "description": "User identifier who enabled this phase."
+          },
+          "revert_window": {
+            "type": "string",
+            "pattern": "^[0-9]+[dwmy]$",
+            "default": "7d",
+            "description": "Duration (e.g., '7d', '2w') during which user can revert this phase without ADR. See exceptions.md §6."
+          },
+          "rationale": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Why this phase was enabled at this strictness for this family."
+          }
+        }
+      },
+      "description": "Per-phase opt-in registry. Empty array means no Mir enforcement applies (family runs free)."
+    },
+    "hooks_enabled": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status"],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": ["enabled", "disabled", "advisory"],
+            "description": "Hook activation status. 'advisory' = log only, no block."
+          },
+          "since": {
+            "type": "string",
+            "format": "date"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 300
+          }
+        }
+      },
+      "description": "Per-hook activation map (e.g., {'pre-tool-use': {'status': 'enabled'}, 'tdd-guard': {'status': 'advisory'}}). Hook names are the basenames in `.claude/hooks/`."
+    },
+    "self_stop_acknowledged": {
+      "type": "boolean",
+      "default": false,
+      "description": "Family operator's acknowledgement that SE-meta self-stop (Mir not-done phase cannot be enforced on family) was checked. Required true before enabled_phases contains any enforced phase."
+    },
+    "purpose": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Single-line mission/purpose statement (R10-R1 , mirror of repo-agent-management.schema.json $defs/repository.purpose). family-private skill recommendation  driver."
+    },
+    "character": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "description": "Distinguishing traits — controlled vocab (R10-R1 ).  vocab list  repo-agent-management.schema.json $defs/repository.character.items.enum  (31 values). family repo  self-recovery   schema  fallback."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "enabled_phases": {
+            "type": "array",
+            "contains": {"properties": {"strictness": {"const": "enforced"}}, "required": ["strictness"]}
+          }
+        }
+      },
+      "then": {"required": ["self_stop_acknowledged"], "properties": {"self_stop_acknowledged": {"const": true}}}
+    }
+  ]
+}

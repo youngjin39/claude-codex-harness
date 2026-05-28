@@ -1,0 +1,216 @@
+{
+  "version": 1,
+  "strategy": "one-way-claude-to-codex",
+  "generated_by": "scripts/generate_codex_derivatives.sh",
+  "notes": "Mir-specific: codex-final-reviewer.toml preserved outside manifest. Profiles: core=12 runtime-default skills, full=18 including Starter-derived optional-pack skills.",
+  "mappings": [
+    {
+      "source": "CLAUDE.md",
+      "targets": ["AGENTS.md"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Main Codex instructions"
+    },
+    {
+      "source": ".claude/agents/README.md",
+      "targets": [".codex/agents/.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/cwe-auditor.md",
+      "targets": [".codex/agents/cwe-auditor.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/dep-auditor.md",
+      "targets": [".codex/agents/dep-auditor.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/executor-agent.md",
+      "targets": [".codex/agents/executor-agent.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/fleet-doc-steward.md",
+      "targets": [".codex/agents/fleet-doc-steward.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/main-orchestrator.md",
+      "targets": [".codex/agents/main-orchestrator.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/ontology-validator.md",
+      "targets": [".codex/agents/ontology-validator.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/pipeline-validator.md",
+      "targets": [".codex/agents/pipeline-validator.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/quality-agent.md",
+      "targets": [".codex/agents/quality-agent.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/runtime-contract-reviewer.md",
+      "targets": [".codex/agents/runtime-contract-reviewer.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/template-sync-validator.md",
+      "targets": [".codex/agents/template-sync-validator.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/agents/ui-reviewer.md",
+      "targets": [".codex/agents/ui-reviewer.toml"],
+      "change_scope": "content",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Generated custom agent"
+    },
+    {
+      "source": ".claude/skills/automation/SKILL.md",
+      "targets": [".agents/skills/automation/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/automation/SKILL.md)"
+    },
+    {
+      "source": ".claude/skills/bluebricks/SKILL.md",
+      "targets": [".agents/skills/bluebricks/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/bluebricks/SKILL.md)"
+    },
+    {
+      "source": ".claude/skills/code-review/SKILL.md",
+      "targets": [".agents/skills/code-review/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/code-review/SKILL.md)"
+    },
+    {
+      "source": ".claude/skills/commit/SKILL.md",
+      "targets": [".agents/skills/commit/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/commit/SKILL.md)"
+    },
+    {
+      "source": ".claude/skills/design/SKILL.md",
+      "targets": [".agents/skills/design/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/design/SKILL.md)"
+    },
+    {
+      "source": ".claude/skills/efficiency/SKILL.md",
+      "targets": [".agents/skills/efficiency/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/efficiency/SKILL.md)"
+    },
+    {
+      "source": ".claude/skills/governance/SKILL.md",
+      "targets": [".agents/skills/governance/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/governance/SKILL.md)"
+    },
+    {
+      "source": ".claude/skills/knowledge/SKILL.md",
+      "targets": [".agents/skills/knowledge/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/knowledge/SKILL.md)"
+    },
+    {
+      "source": ".claude/skills/testing/SKILL.md",
+      "targets": [".agents/skills/testing/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/testing/SKILL.md)"
+    },
+    {
+      "source": ".claude/skills/ui-design/SKILL.md",
+      "targets": [".agents/skills/ui-design/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/ui-design/SKILL.md)"
+    },
+    {
+      "source": ".claude/skills/verify/SKILL.md",
+      "targets": [".agents/skills/verify/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/verify/SKILL.md)"
+    },
+    {
+      "source": ".claude/settings.json",
+      "targets": [".codex/config.toml"],
+      "change_scope": "config",
+      "sync_policy": "regenerate",
+      "owner": "project-maintainer",
+      "notes": "Semantic mapping from Claude permissions and MCP settings"
+    },
+    {
+      "source": ".claude/hooks/lib",
+      "targets": [".codex/hooks/lib"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Shared hook policy lib; .codex/hooks/lib symlinks to .claude/hooks/lib (peer source)"
+    }
+  ]
+}

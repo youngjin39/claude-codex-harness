@@ -1,0 +1,1 @@
+../../../../../.claude/skills/automation/SKILL.md

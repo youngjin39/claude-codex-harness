@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mir-harness.local/schemas/mir_agent_self_health.schema.json",
+  "title": "Mir Agent Self-Health (Mir-as-Agent runtime state)",
+  "description": "R10-R5-T01 . Mir-as-agent (live runtime)  self-monitoring state. mir-roles.md §5-1  3 identity  'Mir-as-agent'  runtime health. mir-harness family row (catalog)   — family row  Mir-self repo  adoption ledger,  schema  agent runtime  lane status. R11  land   , R10  manual maintenance.",
+  "type": "object",
+  "required": ["version", "last_updated", "role_a", "role_b"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema $schema pointer for IDE awareness."
+    },
+    "_comment_": {
+      "type": "string",
+      "description": "Free-form maintenance annotation."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Schema version. R10-R5 = 1.0"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of last self-health update."
+    },
+    "agent_session_id": {
+      "type": "string",
+      "description": "Optional — Claude session identifier when Mir-as-agent updated. R11 hook-driven."
+    },
+    "role_a": {
+      "$ref": "#/$defs/role_state",
+      "description": "Role A — Per-Family Tracker (mir-roles.md §2)"
+    },
+    "role_b": {
+      "$ref": "#/$defs/role_state",
+      "description": "Role B — Template Maintainer (mir-roles.md §3)"
+    },
+    "overall_status": {
+      "type": "string",
+      "enum": ["healthy", "degraded", "down"],
+      "description": "Aggregate: healthy if both roles healthy, degraded if one role degraded, down if either down."
+    },
+    "incidents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/incident_entry" },
+      "description": "Rolling list of last N incidents (R11: cap at 50)"
+    },
+    "hand_off_state": {
+      "$ref": "#/$defs/hand_off_state",
+      "description": "If Mir-as-agent is being handed off (phase-12 §4 protocol). Null when not in hand-off."
+    }
+  },
+  "$defs": {
+    "role_state": {
+      "type": "object",
+      "required": ["status", "last_action_at"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["healthy", "degraded", "down", "not_started"],
+          "description": "healthy = SLA met + no recent failures / degraded = SLA missed or 1+ failure / down = role unable to function / not_started = role never activated (e.g. R10   land)"
+        },
+        "last_action_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last time this role performed a meaningful action (scan, promote, triage, etc.)"
+        },
+        "last_success_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last successful action (vs last_action_at which may be failure)"
+        },
+        "consecutive_failures": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of consecutive failed actions since last success"
+        },
+        "sla_compliance_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Past 7-day SLA compliance (0.0~1.0). R11  ."
+        },
+        "active_subsystems": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Currently active subsystem names. Role A: ['fleet_observe_scan', 'drift_detector']. Role B: ['template_health', 'sanitize_pipeline']."
+        },
+        "pending_queue_size": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Items waiting on this role's queue. Role A: pending innovations. Role B: pending promotes (= tasks/role_b_backlog.md  pending count)."
+        }
+      }
+    },
+    "incident_entry": {
+      "type": "object",
+      "required": ["id", "occurred_at", "role", "severity", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Incident id, e.g. INC-2026-05-23-001"
+        },
+        "occurred_at": { "type": "string", "format": "date-time" },
+        "role": {
+          "type": "string",
+          "enum": ["role_a", "role_b", "shared"]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "error", "critical"]
+        },
+        "summary": { "type": "string", "maxLength": 300 },
+        "resolution_at": { "type": "string", "format": "date-time" },
+        "linked_doc": {
+          "type": "string",
+          "description": "Path to incident-response postmortem (applications/incident-response.md §4-POSTMORTEM )"
+        }
+      }
+    },
+    "hand_off_state": {
+      "type": "object",
+      "required": ["initiated_at", "kind", "successor"],
+      "additionalProperties": false,
+      "properties": {
+        "initiated_at": { "type": "string", "format": "date-time" },
+        "kind": {
+          "type": "string",
+          "enum": ["sub_agent", "user_self", "successor", "fork"],
+          "description": "phase-12 §4-1 hand-off "
+        },
+        "successor": {
+          "type": "string",
+          "description": "Successor agent / user identifier"
+        },
+        "completed_at": { "type": "string", "format": "date-time" },
+        "snapshot_path": {
+          "type": "string",
+          "description": "Path to hand-off snapshot artifact (config/mir-agent-self-health-snapshot-<ts>.json or similar)"
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": ["pending", "in_progress", "complete", "rolled_back"]
+        }
+      }
+    }
+  }
+}

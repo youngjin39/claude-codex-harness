@@ -75,17 +75,17 @@
     },
     "design_doc_ref": {
       "type": "string",
-      "description": "Path to design_doc artifact (docs/decisions/adr-*.md OR docs/harness-engineering/phase-*.md) — R10-R1 신설 per ADR-33. Required when task_type=code_execution AND risk_level in {medium, high}. design-complete-gate.sh hook (R11) 가 enforce."
+      "description": "Path to design_doc artifact (docs/decisions/adr-*.md OR docs/harness-engineering/phase-*.md) — R10-R1  per ADR-33. Required when task_type=code_execution AND risk_level in {medium, high}. design-complete-gate.sh hook (R11)  enforce."
     },
     "task_subtype": {
       "enum": ["code", "audit", "review", "design", "chat", "clarify", "incident_response", "autonomous_loop"],
-      "description": "8-way sliding window subtype lookup (phase-3-memory-context.md §8-1). Optional — maps to task_type via the same §8-1 table. R10-R1 신설."
+      "description": "8-way sliding window subtype lookup (phase-3-memory-context.md §8-1). Optional — maps to task_type via the same §8-1 table. R10-R1 ."
     },
     "sliding_window_n": {
       "type": "integer",
       "minimum": 5,
       "maximum": 100,
-      "description": "Sliding window turn count for context retention (phase-3 §8-1). Derived from task_subtype lookup. R10-R1 신설."
+      "description": "Sliding window turn count for context retention (phase-3 §8-1). Derived from task_subtype lookup. R10-R1 ."
     },
     "origin_session_id": {
       "type": "string",

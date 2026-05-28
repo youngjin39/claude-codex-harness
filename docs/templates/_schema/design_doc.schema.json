@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mir-harness.local/schemas/design_doc.schema.json",
+  "title": "Design Document",
+  "description": "R9-T06 . design  phase / ADR / schema artifact ·  capture  . 5 design_goals + grep evidence + alternatives + acceptance.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "type",
+    "status",
+    "created",
+    "design_goals",
+    "problem",
+    "grep_evidence",
+    "alternatives",
+    "decision",
+    "acceptance_criteria"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+      "description": "kebab-case slug. e.g. fleet-catalog-2026-05-23"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "type": {
+      "type": "string",
+      "enum": ["phase", "adr", "schema", "skill", "agent", "hook", "config"],
+      "description": "   "
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "review", "approved", "superseded", "rejected"]
+    },
+    "created": { "type": "string", "format": "date" },
+    "updated": { "type": "string", "format": "date" },
+    "owner": { "type": "string", "description": "agent or user identifier" },
+
+    "design_goals": {
+      "type": "object",
+      "description": "R9-T11 mandate — 5   -vacuous  . design  enforce.",
+      "required": [
+        "axis_i_mir_self",
+        "axis_ii_template_sync",
+        "axis_iii_fleet_share",
+        "inter_phase_input",
+        "inter_phase_output"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "axis_i_mir_self": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Mir-self      "
+        },
+        "axis_ii_template_sync": {
+          "type": "string",
+          "minLength": 20,
+          "description": "public template (claude-codex-harness) baseline    "
+        },
+        "axis_iii_fleet_share": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Mir catalog  fleet 17 family    share  ( X, opt-in)"
+        },
+        "inter_phase_input": {
+          "type": "string",
+          "minLength": 10,
+          "description": " prior phase / artifact  "
+        },
+        "inter_phase_output": {
+          "type": "string",
+          "minLength": 10,
+          "description": " next phase / artifact  "
+        }
+      }
+    },
+
+    "problem": {
+      "type": "string",
+      "minLength": 30,
+      "description": " . 1 paragraph."
+    },
+
+    "grep_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "description": "feedback_design_must_grep_existing_code  grep 5 location .   .",
+      "items": {
+        "type": "object",
+        "required": ["location", "query", "hit_count", "reviewed_at"],
+        "additionalProperties": false,
+        "properties": {
+          "location": {
+            "type": "string",
+            "enum": [
+              "docs/decisions",
+              "memory/MEMORY.md",
+              " ",
+              "tasks/lessons.md",
+              "docs/architecture",
+              "docs/harness-engineering",
+              "config/repos",
+              "other"
+            ]
+          },
+          "query": { "type": "string", "minLength": 1 },
+          "hit_count": { "type": "integer", "minimum": 0 },
+          "reviewed_at": { "type": "string", "format": "date-time" },
+          "summary": { "type": "string" }
+        }
+      }
+    },
+
+    "alternatives": {
+      "type": "array",
+      "minItems": 2,
+      "description": " 2  . 1   alternatives  .",
+      "items": {
+        "type": "object",
+        "required": ["name", "summary", "decision"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "summary": { "type": "string", "minLength": 20 },
+          "decision": {
+            "type": "string",
+            "enum": ["adopted", "rejected", "deferred"]
+          },
+          "rejection_reason": { "type": "string" }
+        }
+      }
+    },
+
+    "decision": {
+      "type": "string",
+      "minLength": 30,
+      "description": "  . 1 paragraph."
+    },
+
+    "interfaces": {
+      "type": "object",
+      "description": "   interface (schema / API /  ).",
+      "properties": {
+        "input_schema": { "type": "string", "description": "schema  path  inline" },
+        "output_schema": { "type": "string" },
+        "side_effects": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 10 },
+      "description": "    .   ."
+    },
+
+    "test_plan": {
+      "type": "string",
+      "description": "TDD plan  regression test "
+    },
+
+    "rollback": {
+      "type": "string",
+      "description": "land   rollback  (git revert / config restore )"
+    },
+
+    "review_round_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "   review round id (R9-T01 )"
+    },
+
+    "related_adrs": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^adr-[0-9]+" }
+    }
+  }
+}

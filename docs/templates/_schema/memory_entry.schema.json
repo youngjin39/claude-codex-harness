@@ -3,7 +3,7 @@
   "$id": "mir/template/memory_entry",
   "title": "Mir Memory Entry Schema",
   "description": "Single memory record in the SoT (global/personal/project). Supports lifetime tracking, deprecation, and supersession.",
-  "$comment": "R8 보강 — CP family 메모리 (캐릭터 시트 / 스타일 가이드 / 챕터 연속성 / 세계관 설정) 매핑 가이드: `type: project` + `tags: [cp-character, cp-style, cp-continuity, cp-worldbuild]` 사용. `type: reference` 사용 금지 (Phase 8 GC default 30일 만료 — CP 장기 자산 손실 위험). storydirector 류 per-agent memory 디렉터리는 ADR-13 per-agent namespace 와 정합 (`owner: <agent_slug>` 활용). Slice C WARN 해소.",
+  "$comment": "R8  — CP family  (  /   /   /  )  : `type: project` + `tags: [cp-character, cp-style, cp-continuity, cp-worldbuild]` . `type: reference`   (Phase 8 GC default 30  — CP    ). storydirector  per-agent memory  ADR-13 per-agent namespace   (`owner: <agent_slug>` ). Slice C WARN .",
   "type": "object",
   "required": ["id", "type", "body", "status", "created"],
   "additionalProperties": false,

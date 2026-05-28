@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mir/template/tdd",
+  "title": "Mir TDD Ledger Schema",
+  "description": "Composite TDD ledger. Per-bundle phase test plans live as top-level keys (slug-keyed objects). Per-change entries with implementation IDs live in `changes[]`. Audit history lives in `history[]`. tdd_links in phase.json reference changes[].id.",
+  "type": "object",
+  "required": ["version"],
+  "additionalProperties": true,
+  "properties": {
+    "version": {"const": 1},
+    "changes": {
+      "type": "array",
+      "description": "Per-implementation change records. phase.json.tdd_links reference entries here by id.",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 3,
+            "description": "Stable change identifier referenced by phase.json.tdd_links."
+          },
+          "scope": {"type": "string"}
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "description": "Audit history entries.",
+      "items": {"type": "object"}
+    }
+  },
+  "patternProperties": {
+    "^(?!version$|changes$|history$|\\$schema$)[A-Za-z][A-Za-z0-9_.-]*$": {
+      "type": "object",
+      "description": "Per-bundle phase test plan keyed by bundle slug. Conventionally carries description, commands, expected, targets, pass_criteria.",
+      "additionalProperties": true,
+      "properties": {
+        "description": {"type": "string"},
+        "commands": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "expected": {"type": ["string", "object", "array"]},
+        "targets": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "pass_criteria": {"type": ["string", "object", "array"]}
+      }
+    }
+  }
+}
