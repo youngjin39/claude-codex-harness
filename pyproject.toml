@@ -1,0 +1,51 @@
+[project]
+name = "mir-harness"
+version = "0.3.0"
+description = "claude-codex-harness — public template for Claude Code + Codex teams"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.12"
+authors = [{name = "Mir Harness Contributors"}]
+
+# Runtime dependencies for the memory engine.
+# Heavy deps (pydantic, pynacl, mcp, etc.) are not required here — the
+# template ships only the memory + migrate surface.
+dependencies = [
+    "httpx>=0.27,<1",
+    "sqlite-vec>=0.1.9,<0.2",
+    "markdown-it-py>=3.0,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.7",
+]
+
+[project.scripts]
+mir = "mir.cli.__main__:main"
+
+[project.entry-points."mir.embedding_backends"]
+omlx_http = "mir.core.engine.memory.backends.omlx_http:OmlxHttpBackend"
+
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mir"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/mir/core/engine/memory/migrations" = "mir/core/engine/memory/migrations"
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "tools"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]

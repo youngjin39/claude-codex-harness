@@ -40,3 +40,8 @@ target/
 dist/
 build/
 out/
+
+# Mir memory database (created by `mir migrate up` — never commit live DB)
+.mir/*.db
+.mir/*.db-shm
+.mir/*.db-wal

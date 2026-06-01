@@ -1,0 +1,702 @@
+"""External archive indexer — path-only + embedding + FTS5 (ADR 1).
+
+design v0.6 §5 · decisions/adr-01-external-store.md.
+
+Mir memory.db keeps only ``(archive, document, chunk)`` rows plus
+``external_chunks_vec`` (sqlite-vec) and ``external_chunks_fts`` (FTS5
+contentless). File bodies stay in the file system — Mir never writes into
+the archive. ``mode='immutable'`` archives are additionally wired into
+``PolicyStore.denied_paths`` by the config loader (ADR 1 §2.8).
+
+Key invariants:
+  * ``external_chunks.id == external_chunks_vec.rowid == external_chunks_fts.rowid``
+    — all three populated inside one sqlite transaction per chunk.
+  * Chunking is char-oriented (800 + 100 overlap default). ``byte_start``
+    and ``byte_end`` record the UTF-8 byte offsets of those char slices
+    so ``file.read()[byte_start:byte_end].decode("utf-8")`` round-trips.
+  * vec0 creation is runtime-only via ``ensure_external_vec_table`` —
+    migration 015 does not touch sqlite-vec (Third Review TB1).
+"""
+from __future__ import annotations
+
+import fnmatch
+import hashlib
+import re
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+
+from mir.core.engine.memory.distill import sanitize_fts_query
+from mir.core.engine.memory.store import Connection
+from mir.core.engine.memory.vector_index import (
+    _pack_vector,
+    validate_embedding,
+)
+
+DEFAULT_CHUNK_SIZE = 800
+DEFAULT_CHUNK_OVERLAP = 100
+DEFAULT_EMBED_DIM = 1024
+
+
+# --- Errors ------------------------------------------------------------
+
+class ExternalStoreError(RuntimeError):
+    """Base error for external_store operations."""
+
+
+class ExternalArchiveOverlapError(ExternalStoreError):
+    """Two archives cover the same absolute path (self-review M7)."""
+
+
+# --- Data classes -------------------------------------------------------
+
+@dataclass(frozen=True)
+class Chunk:
+    """A char-bounded slice of file text with its UTF-8 byte range."""
+
+    chunk_index: int
+    text: str
+    byte_start: int
+    byte_end: int
+    text_hash: str
+
+
+@dataclass(frozen=True)
+class ScanResult:
+    inserted: int
+    deleted: int
+    reindexed: int
+    unchanged: int
+    failed: tuple[tuple[str, str], ...] = ()    # (relpath, reason) per file
+
+
+@dataclass(frozen=True)
+class ExternalHit:
+    """One hybrid-search result."""
+
+    archive_slug: str
+    relative_path: str
+    byte_start: int
+    byte_end: int
+    score: float
+
+
+# --- vec0 runtime helper (Third Review TB1) ----------------------------
+
+def ensure_external_vec_table(
+    conn, *, dim: int = DEFAULT_EMBED_DIM
+) -> None:
+    """Create ``external_chunks_vec`` if sqlite-vec is loaded.
+
+    Caller must verify ``Connection.vec_available`` first — calling this
+    against a connection without the extension will raise ``sqlite3``
+    errors. Uses the same lowercase ``float[NNN]`` contract as
+    ``facts_vec`` (v0.5.3 V8).
+    """
+    conn.execute(
+        f"CREATE VIRTUAL TABLE IF NOT EXISTS external_chunks_vec "
+        f"USING vec0(embedding float[{dim}])"
+    )
+
+
+# --- Chunker (self-review H2) -------------------------------------------
+
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?。!?])\s+")
+_PARAGRAPH_BOUNDARY = "\n\n"
+
+
+def _chunk_text(
+    raw: str,
+    *,
+    size: int = DEFAULT_CHUNK_SIZE,
+    overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> list[Chunk]:
+    """Split *raw* into character-bounded chunks.
+
+    Paragraph boundary first, sentence next, char last. ``byte_start`` /
+    ``byte_end`` record the UTF-8 byte range of the char slice so callers
+    can re-read the original bytes without a round-trip through str.
+    """
+    if size <= 0 or overlap < 0 or overlap >= size:
+        raise ValueError(
+            f"invalid chunk params size={size!r} overlap={overlap!r}"
+        )
+    if not raw:
+        return []
+
+    # Precompute char_index → byte_offset table once (UTF-8 widths vary).
+    byte_offsets: list[int] = [0]
+    running = 0
+    for ch in raw:
+        running += len(ch.encode("utf-8"))
+        byte_offsets.append(running)
+    total_chars = len(raw)
+    assert byte_offsets[-1] == len(raw.encode("utf-8"))
+
+    chunks: list[Chunk] = []
+    start = 0
+    idx = 0
+    while start < total_chars:
+        end = min(start + size, total_chars)
+        # Prefer paragraph break within [start, end]
+        if end < total_chars:
+            window = raw[start:end]
+            pbreak = window.rfind(_PARAGRAPH_BOUNDARY)
+            if pbreak > overlap:                # don't collapse to tiny chunk
+                end = start + pbreak + len(_PARAGRAPH_BOUNDARY)
+            else:
+                # Fall back to sentence boundary
+                match = None
+                for m in _SENTENCE_BOUNDARY.finditer(window):
+                    match = m
+                if match is not None and match.end() > overlap:
+                    end = start + match.end()
+                # else: hard char boundary (end stays at start + size)
+
+        piece = raw[start:end]
+        chunks.append(
+            Chunk(
+                chunk_index=idx,
+                text=piece,
+                byte_start=byte_offsets[start],
+                byte_end=byte_offsets[end],
+                text_hash=hashlib.sha256(piece.encode("utf-8")).hexdigest(),
+            )
+        )
+        idx += 1
+        if end >= total_chars:
+            break
+        start = max(0, end - overlap)
+    return chunks
+
+
+# --- Glob matcher -------------------------------------------------------
+
+def _compile_globs(spec: str | None) -> tuple[str, ...]:
+    if not spec:
+        return ()
+    return tuple(g.strip() for g in spec.split(",") if g.strip())
+
+
+def _matches_any(rel: str, patterns: Iterable[str]) -> bool:
+    for p in patterns:
+        if fnmatch.fnmatch(rel, p):
+            return True
+    return False
+
+
+def _glob_to_regex(pattern: str) -> re.Pattern:
+    """Translate a ``**``-aware glob to a regex (fnmatch lacks ``**``)."""
+    # Normalise and split segments.
+    buf: list[str] = ["^"]
+    i = 0
+    while i < len(pattern):
+        ch = pattern[i]
+        if pattern[i:i + 3] == "**/":
+            buf.append(r"(?:.*/)?")
+            i += 3
+        elif pattern[i:i + 2] == "**":
+            buf.append(r".*")
+            i += 2
+        elif ch == "*":
+            buf.append(r"[^/]*")
+            i += 1
+        elif ch == "?":
+            buf.append(r"[^/]")
+            i += 1
+        elif ch in ".+^$(){}|\\":
+            buf.append(re.escape(ch))
+            i += 1
+        else:
+            buf.append(ch)
+            i += 1
+    buf.append("$")
+    return re.compile("".join(buf))
+
+
+def _compile_pattern_set(patterns: tuple[str, ...]) -> tuple[re.Pattern, ...]:
+    return tuple(_glob_to_regex(p) for p in patterns)
+
+
+def _matches_regex_any(rel: str, compiled: tuple[re.Pattern, ...]) -> bool:
+    return any(c.match(rel) for c in compiled)
+
+
+def _walk_archive(
+    root: Path,
+    include: tuple[str, ...],
+    exclude: tuple[str, ...],
+) -> Iterator[str]:
+    """Yield archive-relative paths matching *include* and not *exclude*.
+
+    ``**`` is honoured: ``**/*.md`` matches any-depth .md files (fnmatch
+    treats ``**`` as ``*`` so we pre-compile to regex instead).
+    """
+    root = root.resolve()
+    if not root.is_dir():
+        return
+    inc_regex = _compile_pattern_set(include) if include else ()
+    exc_regex = _compile_pattern_set(exclude) if exclude else ()
+    for p in root.rglob("*"):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(root).as_posix()
+        if inc_regex and not _matches_regex_any(rel, inc_regex):
+            continue
+        if exc_regex and _matches_regex_any(rel, exc_regex):
+            continue
+        yield rel
+
+
+# --- Core store ---------------------------------------------------------
+
+@dataclass(frozen=True)
+class _ArchiveRow:
+    id: int
+    slug: str
+    root_path: str
+    mode: str
+    glob_include: tuple[str, ...]
+    glob_exclude: tuple[str, ...]
+    chunk_size: int
+    chunk_overlap: int
+
+
+class ExternalStore:
+    """Indexer for external file archives.
+
+    The store takes a pre-built :class:`Connection` (so sqlite-vec is
+    loaded exactly once — Third Review TM3) and never opens its own.
+    Constructors should run ``ensure_external_vec_table`` if the caller
+    wants vector search; FTS5-only mode is valid when
+    ``conn.vec_available`` is False (TB1 fallback).
+    """
+
+    def __init__(self, conn: Connection):
+        self._conn = conn
+
+    # ---- registration ----
+
+    def register(
+        self,
+        *,
+        slug: str,
+        root_path: str,
+        mode: str,
+        glob_include: tuple[str, ...] = (),
+        glob_exclude: tuple[str, ...] = (),
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+        owner: str,
+    ) -> int:
+        """Insert or update an archive row. Returns archive_id."""
+        if mode not in ("indexed", "immutable"):
+            raise ValueError(f"invalid mode {mode!r}")
+        now = datetime.now(UTC).isoformat()
+        cur = self._conn.conn.execute(
+            """
+            INSERT INTO external_archives
+              (slug, root_path, mode, glob_include, glob_exclude,
+               chunk_size, chunk_overlap, owner, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(slug) DO UPDATE SET
+              root_path = excluded.root_path,
+              mode = excluded.mode,
+              glob_include = excluded.glob_include,
+              glob_exclude = excluded.glob_exclude,
+              chunk_size = excluded.chunk_size,
+              chunk_overlap = excluded.chunk_overlap,
+              owner = excluded.owner
+            RETURNING id
+            """,
+            (
+                slug, root_path, mode,
+                ",".join(glob_include) if glob_include else None,
+                ",".join(glob_exclude) if glob_exclude else None,
+                chunk_size, chunk_overlap, owner, now,
+            ),
+        )
+        row = cur.fetchone()
+        self._conn.conn.commit()
+        return row[0]
+
+    def _fetch_archive(self, archive_id: int) -> _ArchiveRow:
+        row = self._conn.conn.execute(
+            "SELECT id, slug, root_path, mode, glob_include, glob_exclude, "
+            "chunk_size, chunk_overlap "
+            "FROM external_archives WHERE id = ?",
+            (archive_id,),
+        ).fetchone()
+        if row is None:
+            raise ExternalStoreError(f"archive_id {archive_id} not found")
+        return _ArchiveRow(
+            id=row[0], slug=row[1], root_path=row[2], mode=row[3],
+            glob_include=_compile_globs(row[4]),
+            glob_exclude=_compile_globs(row[5]),
+            chunk_size=row[6], chunk_overlap=row[7],
+        )
+
+    # ---- scan ----
+
+    def scan(
+        self,
+        archive_id: int,
+        *,
+        embed_fn=None,
+        embed_batch_size: int | None = None,
+    ) -> ScanResult:
+        """Sync ``external_documents/chunks/fts/vec`` with the filesystem.
+
+        ``embed_fn(list[str]) -> list[list[float]]`` is called per file
+        (batched per its chunks). If ``None``, vector index is skipped
+        (FTS5-only mode). If the connection lacks vec_available, vector
+        writes are silently skipped per TB1 graceful-degradation rule.
+        """
+        archive = self._fetch_archive(archive_id)
+        root = Path(archive.root_path)
+        current_fs = set(_walk_archive(root, archive.glob_include, archive.glob_exclude))
+
+        db_rows = self._conn.conn.execute(
+            "SELECT relative_path FROM external_documents WHERE archive_id = ?",
+            (archive_id,),
+        ).fetchall()
+        db_set = {r[0] for r in db_rows}
+
+        to_delete = db_set - current_fs
+        to_insert = current_fs - db_set
+        to_check  = current_fs & db_set
+
+        inserted = deleted = reindexed = unchanged = 0
+        failed: list[tuple[str, str]] = []
+
+        for rel in to_delete:
+            try:
+                self._cascade_delete_document(archive_id, rel)
+                deleted += 1
+            except Exception as e:                          # pragma: no cover
+                failed.append((rel, f"delete: {e}"))
+
+        for rel in to_insert:
+            try:
+                self._index_file(
+                    archive, rel,
+                    embed_fn=embed_fn, embed_batch_size=embed_batch_size,
+                )
+                inserted += 1
+            except Exception as e:
+                failed.append((rel, f"insert: {e}"))
+
+        for rel in to_check:
+            try:
+                changed = self._reindex_if_changed(
+                    archive, rel,
+                    embed_fn=embed_fn, embed_batch_size=embed_batch_size,
+                )
+                if changed:
+                    reindexed += 1
+                else:
+                    unchanged += 1
+            except Exception as e:
+                failed.append((rel, f"reindex: {e}"))
+
+        self._conn.conn.execute(
+            "UPDATE external_archives SET last_scanned_at = ? WHERE id = ?",
+            (datetime.now(UTC).isoformat(), archive_id),
+        )
+        self._conn.conn.commit()
+
+        return ScanResult(
+            inserted=inserted, deleted=deleted, reindexed=reindexed,
+            unchanged=unchanged, failed=tuple(failed),
+        )
+
+    # ---- internals ----
+
+    def _read_file(self, archive: _ArchiveRow, rel: str) -> tuple[str, str, int]:
+        p = Path(archive.root_path) / rel
+        data = p.read_bytes()
+        file_hash = hashlib.sha256(data).hexdigest()
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise ExternalStoreError(f"{rel}: not utf-8 ({e})") from e
+        return text, file_hash, len(data)
+
+    def _cascade_delete_document(self, archive_id: int, rel: str) -> None:
+        conn = self._conn.conn
+        with conn:
+            # Locate doc + chunks up front so we can clear _fts / _vec explicitly.
+            doc_row = conn.execute(
+                "SELECT id FROM external_documents "
+                "WHERE archive_id = ? AND relative_path = ?",
+                (archive_id, rel),
+            ).fetchone()
+            if doc_row is None:
+                return
+            doc_id = doc_row[0]
+            chunk_ids = [
+                r[0] for r in conn.execute(
+                    "SELECT id FROM external_chunks WHERE document_id = ?",
+                    (doc_id,),
+                ).fetchall()
+            ]
+            for cid in chunk_ids:
+                self._delete_chunk_rowid(cid)
+            conn.execute("DELETE FROM external_documents WHERE id = ?", (doc_id,))
+            # external_chunks rows cascade via FK.
+
+    def _delete_chunk_rowid(self, chunk_id: int) -> None:
+        conn = self._conn.conn
+        conn.execute("DELETE FROM external_chunks_fts WHERE rowid = ?", (chunk_id,))
+        if self._conn.vec_available:
+            conn.execute("DELETE FROM external_chunks_vec WHERE rowid = ?", (chunk_id,))
+
+    def _index_file(
+        self,
+        archive: _ArchiveRow,
+        rel: str,
+        *,
+        embed_fn,
+        embed_batch_size: int | None = None,
+    ) -> int:
+        """Insert a new document + its chunks. Returns document_id."""
+        text, file_hash, byte_len = self._read_file(archive, rel)
+        chunks = _chunk_text(
+            text, size=archive.chunk_size, overlap=archive.chunk_overlap,
+        )
+
+        conn = self._conn.conn
+        with conn:
+            cur = conn.execute(
+                "INSERT INTO external_documents "
+                "(archive_id, relative_path, file_hash, byte_len, vec_indexed_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (archive.id, rel, file_hash, byte_len,
+                 datetime.now(UTC).isoformat() if embed_fn and self._conn.vec_available else None),
+            )
+            doc_id = cur.lastrowid
+            assert doc_id is not None, "INSERT must return a rowid"
+            self._insert_chunks(
+                doc_id, chunks,
+                embed_fn=embed_fn, embed_batch_size=embed_batch_size,
+            )
+        return doc_id
+
+    def _reindex_if_changed(
+        self,
+        archive: _ArchiveRow,
+        rel: str,
+        *,
+        embed_fn,
+        embed_batch_size: int | None = None,
+    ) -> bool:
+        text, file_hash, byte_len = self._read_file(archive, rel)
+        conn = self._conn.conn
+        row = conn.execute(
+            "SELECT id, file_hash FROM external_documents "
+            "WHERE archive_id = ? AND relative_path = ?",
+            (archive.id, rel),
+        ).fetchone()
+        if row is None:
+            # race: vanished between diff and now — treat as insert.
+            self._index_file(archive, rel, embed_fn=embed_fn)
+            return True
+        doc_id, old_hash = row
+        if old_hash == file_hash:
+            return False
+
+        chunks = _chunk_text(
+            text, size=archive.chunk_size, overlap=archive.chunk_overlap,
+        )
+        with conn:
+            # Drop old chunks (cascades rowids in _fts / _vec too).
+            old_ids = [
+                r[0] for r in conn.execute(
+                    "SELECT id FROM external_chunks WHERE document_id = ?",
+                    (doc_id,),
+                ).fetchall()
+            ]
+            for cid in old_ids:
+                self._delete_chunk_rowid(cid)
+            conn.execute("DELETE FROM external_chunks WHERE document_id = ?", (doc_id,))
+            conn.execute(
+                "UPDATE external_documents "
+                "SET file_hash = ?, byte_len = ?, vec_indexed_at = ? "
+                "WHERE id = ?",
+                (file_hash, byte_len,
+                 datetime.now(UTC).isoformat() if embed_fn and self._conn.vec_available else None,
+                 doc_id),
+            )
+            self._insert_chunks(
+                doc_id, chunks,
+                embed_fn=embed_fn, embed_batch_size=embed_batch_size,
+            )
+        return True
+
+    def _insert_chunks(
+        self,
+        doc_id: int,
+        chunks: list[Chunk],
+        *,
+        embed_fn,
+        embed_batch_size: int | None = None,
+    ) -> None:
+        if not chunks:
+            return
+        conn = self._conn.conn
+        # wave 2 RM1 — batching. Large files could submit 1000+ strings in
+        # one embed_fn call, risking upstream timeout. batch_size=None → one
+        # shot (previous behaviour). batch_size>0 → split.
+        embeddings: list[list[float]] | None = None
+        if embed_fn is not None and self._conn.vec_available:
+            chunk_texts = [c.text for c in chunks]
+            if embed_batch_size and embed_batch_size > 0:
+                embeddings = []
+                for i in range(0, len(chunk_texts), embed_batch_size):
+                    batch = chunk_texts[i : i + embed_batch_size]
+                    embeddings.extend(embed_fn(batch))
+            else:
+                embeddings = embed_fn(chunk_texts)
+            if len(embeddings) != len(chunks):
+                raise ExternalStoreError(
+                    f"embed_fn returned {len(embeddings)} vectors for "
+                    f"{len(chunks)} chunks"
+                )
+
+        for i, ch in enumerate(chunks):
+            cur = conn.execute(
+                "INSERT INTO external_chunks "
+                "(document_id, chunk_index, byte_start, byte_end, text_hash) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (doc_id, ch.chunk_index, ch.byte_start, ch.byte_end, ch.text_hash),
+            )
+            chunk_id = cur.lastrowid
+            conn.execute(
+                "INSERT INTO external_chunks_fts(rowid, content) VALUES (?, ?)",
+                (chunk_id, ch.text),
+            )
+            if embeddings is not None:
+                vec = embeddings[i]
+                validate_embedding(vec, expected_dim=DEFAULT_EMBED_DIM)
+                conn.execute(
+                    "INSERT INTO external_chunks_vec(rowid, embedding) VALUES (?, ?)",
+                    (chunk_id, _pack_vector(vec)),
+                )
+
+    # ---- search ----
+
+    def search(
+        self,
+        query: str,
+        *,
+        k: int = 10,
+        archive_slugs: tuple[str, ...] | None = None,
+        embed_fn=None,
+    ) -> list[ExternalHit]:
+        """Hybrid search across registered archives.
+
+        When ``embed_fn`` is provided and ``conn.vec_available`` is True,
+        this performs a vec0 kNN + FTS5 MATCH + Reciprocal Rank Fusion.
+        Otherwise it falls back to FTS5-only ranking (TB1).
+
+        Only chunk metadata (path + byte range + score) is returned —
+        the caller re-reads the file to get body text (ADR 1 §2.2).
+        """
+        # wave 2 SM6 — archive_slugs 필터를 RRF 입력 단계로 전진. 이전에는
+        # vec_hits + fts_rows 전부 수집 · RRF · SELECT 이후 후행 슬러그 필터
+        # 였는데, 이러면 제외될 rowid 가 RRF topk 자리를 차지해 실제 반환
+        # 결과가 k 보다 적어질 수 있음. chunk_id → slug 매핑을 미리 한 번만
+        # 조회해 RRF 전 가림.
+        allowed_chunk_ids: set[int] | None = None
+        if archive_slugs:
+            slug_filter_set = set(archive_slugs)
+            allowed_chunk_ids = {
+                row[0] for row in self._conn.conn.execute(
+                    "SELECT c.id FROM external_chunks c "
+                    "JOIN external_documents d ON d.id = c.document_id "
+                    "JOIN external_archives a ON a.id = d.archive_id "
+                    f"WHERE a.slug IN ({','.join('?' * len(slug_filter_set))})",
+                    tuple(slug_filter_set),
+                ).fetchall()
+            }
+            if not allowed_chunk_ids:
+                return []
+
+        vec_hits: list[tuple[int, float]] = []
+        if embed_fn is not None and self._conn.vec_available:
+            try:
+                [query_vec] = embed_fn([query])
+            except ValueError:
+                raise
+            validate_embedding(query_vec, expected_dim=DEFAULT_EMBED_DIM)
+            # wave 3 TN3 — sqlite-vec vec0 의 `distance` 는 기본 **L2 (유클리드)**.
+                # bge-m3 embedding 은 정규화돼 cosine 대체로 동작. 다른 metric 으로 바
+                # 꾸려면 vec0 CREATE 시 distance_metric 명시. 현재는 default L2 유지.
+            vec_hits = list(self._conn.conn.execute(
+                "SELECT rowid, distance FROM external_chunks_vec "
+                "WHERE embedding MATCH ? ORDER BY distance LIMIT ?",
+                (_pack_vector(query_vec), k * 3),
+            ).fetchall())
+            if allowed_chunk_ids is not None:
+                vec_hits = [h for h in vec_hits if h[0] in allowed_chunk_ids]
+
+        safe_query = sanitize_fts_query(query)
+        fts_rows = list(self._conn.conn.execute(
+            "SELECT rowid, rank FROM external_chunks_fts "
+            "WHERE external_chunks_fts MATCH ? ORDER BY rank LIMIT ?",
+            (safe_query, k * 3),
+        ).fetchall())
+        if allowed_chunk_ids is not None:
+            fts_rows = [r for r in fts_rows if r[0] in allowed_chunk_ids]
+
+        # RRF fusion (k_rrf = 60 as in the literature standard).
+        k_rrf = 60.0
+        scores: dict[int, float] = {}
+        for rank, (rowid, _) in enumerate(vec_hits):
+            scores[rowid] = scores.get(rowid, 0.0) + 1.0 / (k_rrf + rank)
+        for rank, (rowid, _) in enumerate(fts_rows):
+            scores[rowid] = scores.get(rowid, 0.0) + 1.0 / (k_rrf + rank)
+
+        if not scores:
+            return []
+
+        rowids = sorted(scores, key=scores.get, reverse=True)[:k]   # type: ignore[arg-type]
+        placeholders = ",".join("?" * len(rowids))
+        rows = self._conn.conn.execute(
+            f"""
+            SELECT c.id, a.slug, d.relative_path, c.byte_start, c.byte_end
+            FROM external_chunks c
+            JOIN external_documents d ON d.id = c.document_id
+            JOIN external_archives  a ON a.id = d.archive_id
+            WHERE c.id IN ({placeholders})
+            """,
+            rowids,
+        ).fetchall()
+        row_by_id = {r[0]: r for r in rows}
+
+        hits: list[ExternalHit] = []
+        for rid in rowids:
+            row = row_by_id.get(rid)
+            if row is None:
+                continue
+            _, slug, relpath, bs, be = row
+            hits.append(ExternalHit(
+                archive_slug=slug, relative_path=relpath,
+                byte_start=bs, byte_end=be, score=scores[rid],
+            ))
+        return hits
+
+
+__all__ = (
+    "Chunk",
+    "DEFAULT_CHUNK_OVERLAP",
+    "DEFAULT_CHUNK_SIZE",
+    "DEFAULT_EMBED_DIM",
+    "ExternalArchiveOverlapError",
+    "ExternalHit",
+    "ExternalStore",
+    "ExternalStoreError",
+    "ScanResult",
+    "ensure_external_vec_table",
+)

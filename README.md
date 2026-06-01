@@ -223,9 +223,11 @@ python3 scripts/verify_repo_agent_management.py
 │   ├── sessions/               #   session snapshots
 │   └── handoffs/               #   inter-session handoffs
 │
-├── docs/                       # long-term memory
-│   ├── memory-map.md           #   keyword → file index
+├── docs/                       # prose memory + generated md projections
+│   ├── memory-map.md           #   keyword → file index (generated from .mir/memory.db)
 │   └── decisions/              #   ADRs
+│
+├── .mir/                       # canonical memory DB (.mir/memory.db, gitignored)
 │
 └── examples/                   # short walk-throughs
 ```
