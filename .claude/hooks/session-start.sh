@@ -8,14 +8,14 @@ echo "=== SESSION CONTEXT ==="
 
 if [ -f "$PROJECT_DIR/tasks/plan.md" ]; then
   echo "--- plan.md ---"
-  head -50 "$PROJECT_DIR/tasks/plan.md" | head -c 4000
+  head -50 "$PROJECT_DIR/tasks/plan.md" | head -c 1200
 fi
 
 echo ""
 
 if [ -f "$PROJECT_DIR/tasks/lessons.md" ]; then
   echo "--- lessons.md ---"
-  head -50 "$PROJECT_DIR/tasks/lessons.md"
+  head -30 "$PROJECT_DIR/tasks/lessons.md"
 fi
 
 echo ""
