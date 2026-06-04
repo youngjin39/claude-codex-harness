@@ -15,11 +15,6 @@
         "rule_id": "R8",
         "rule_name": "hook_file_reachability",
         "error_findings": 1
-      },
-      {
-        "rule_id": "R13",
-        "rule_name": "architecture_contract",
-        "error_findings": 1
       }
     ]
   },
@@ -80,7 +75,7 @@
       "id": "R13",
       "name": "architecture_contract",
       "severity": "ERROR",
-      "enabled": false,
+      "enabled": true,
       "drift_class": 6
     },
     {
