@@ -1,0 +1,304 @@
+{
+  "$schema": "./harness-consistency.schema.json",
+  "version": 1,
+  "_generated": {
+    "by": "tools.harness_consistency generate",
+    "repo_root": ".",
+    "note": "Irreducible rule_inputs (retired_symbols, gate_liveness, code_schema pairs, artifact_map, manual_trigger_allowlist) are empty and must be hand-tuned per family; derivable sections were introspected. Run `python -m tools.harness_consistency run` and tune until green. In --green mode, ERROR rules listed in disabled_rules were auto-disabled because they ERROR on this repo and should be re-enabled after the family adds the prerequisite or tunes the input.",
+    "disabled_rules": [
+      {
+        "rule_id": "R2",
+        "rule_name": "context_path_references",
+        "error_findings": 1
+      },
+      {
+        "rule_id": "R3",
+        "rule_name": "single_family_source",
+        "error_findings": 3
+      },
+      {
+        "rule_id": "R5",
+        "rule_name": "adr_status_enum",
+        "error_findings": 1
+      },
+      {
+        "rule_id": "R8",
+        "rule_name": "hook_file_reachability",
+        "error_findings": 1
+      },
+      {
+        "rule_id": "R13",
+        "rule_name": "architecture_contract",
+        "error_findings": 1
+      }
+    ]
+  },
+  "repo": {
+    "slug": "claude-codex-harness",
+    "repository_type": "template_transitional",
+    "role": "code_tdd_review_plane",
+    "fleet_manager": true,
+    "enforcement": {
+      "tools_commit_gate": "deferred",
+      "tools_tdd_ledger": "keyed_composite"
+    }
+  },
+  "rules": [
+    {
+      "id": "R5",
+      "name": "adr_status_enum",
+      "severity": "ERROR",
+      "enabled": false,
+      "drift_class": 3
+    },
+    {
+      "id": "R10",
+      "name": "settings_dual_fire_dedup",
+      "severity": "ERROR",
+      "enabled": true,
+      "drift_class": 4
+    },
+    {
+      "id": "R3",
+      "name": "single_family_source",
+      "severity": "ERROR",
+      "enabled": false,
+      "drift_class": 2
+    },
+    {
+      "id": "R4",
+      "name": "catalog_loader_usage",
+      "severity": "ERROR",
+      "enabled": true,
+      "drift_class": 2
+    },
+    {
+      "id": "R6",
+      "name": "adr_supersession_graph",
+      "severity": "ERROR",
+      "enabled": true,
+      "drift_class": 3
+    },
+    {
+      "id": "R2",
+      "name": "context_path_references",
+      "severity": "ERROR",
+      "enabled": false,
+      "drift_class": 1
+    },
+    {
+      "id": "R13",
+      "name": "architecture_contract",
+      "severity": "ERROR",
+      "enabled": false,
+      "drift_class": 6
+    },
+    {
+      "id": "R1",
+      "name": "removed_symbol_references",
+      "severity": "ERROR",
+      "enabled": true,
+      "drift_class": 1
+    },
+    {
+      "id": "R8",
+      "name": "hook_file_reachability",
+      "severity": "ERROR",
+      "enabled": false,
+      "drift_class": 4
+    },
+    {
+      "id": "R12",
+      "name": "wired_gate_liveness",
+      "severity": "ERROR",
+      "enabled": true,
+      "drift_class": 1
+    },
+    {
+      "id": "R14",
+      "name": "archived_source_phase_doc",
+      "severity": "ERROR",
+      "enabled": true,
+      "drift_class": 6
+    },
+    {
+      "id": "R15",
+      "name": "code_schema_constraint_agreement",
+      "severity": "ERROR",
+      "enabled": true,
+      "drift_class": 7
+    },
+    {
+      "id": "R7",
+      "name": "adr_artifact_present",
+      "severity": "WARN",
+      "enabled": true,
+      "drift_class": 3
+    },
+    {
+      "id": "R9",
+      "name": "hook_tier_declaration",
+      "severity": "WARN",
+      "enabled": true,
+      "drift_class": 4
+    },
+    {
+      "id": "R11",
+      "name": "generated_marker_rerender",
+      "severity": "WARN",
+      "enabled": true,
+      "drift_class": 5
+    }
+  ],
+  "rule_inputs": {
+    "adr_status_enum": {
+      "adr_glob": "docs/decisions/adr-*.md",
+      "enum_schema": "docs/templates/_schema/adr.schema.json",
+      "enum_key": "frontmatter_status_enum"
+    },
+    "settings_dual_fire_dedup": {
+      "settings_files": [
+        ".claude/settings.json",
+        ".claude/settings.local.json"
+      ]
+    },
+    "single_family_source": {
+      "source_files": [
+        "tools/profile_compiler/cli.py",
+        "scripts/audit_family_adoption.py",
+        "scripts/sync_family_hooks.py"
+      ],
+      "required_symbol": "load_family_registry"
+    },
+    "catalog_loader_usage": {
+      "scan_dirs": [
+        "tools",
+        "scripts"
+      ],
+      "exclude_substrings": [
+        "catalog_loader.py"
+      ]
+    },
+    "adr_supersession_graph": {
+      "adr_glob": "docs/decisions/adr-*.md"
+    },
+    "context_path_references": {
+      "script": "scripts/verify_context_paths.py",
+      "args": []
+    },
+    "architecture_contract": {
+      "module": "tools.harness_contract",
+      "subcommand": "check"
+    },
+    "generated_marker_rerender": {
+      "surfaces": [
+        {
+          "file": "docs/memory-map.md",
+          "marker_begin": "<!-- mir:generated:start -->",
+          "marker_end": "<!-- mir:generated:end -->",
+          "render_module": "mir",
+          "render_args": [
+            "memory",
+            "render",
+            "--target",
+            "memory-map"
+          ],
+          "source": ".mir/memory.db",
+          "skip_if_source_absent": true
+        },
+        {
+          "file": "tasks/lessons.md",
+          "marker_begin": "<!-- mir:generated:start -->",
+          "marker_end": "<!-- mir:generated:end -->",
+          "render_module": "mir",
+          "render_args": [
+            "memory",
+            "render",
+            "--target",
+            "lessons"
+          ],
+          "source": ".mir/memory.db",
+          "skip_if_source_absent": true
+        },
+        {
+          "file": "CLAUDE.md",
+          "marker_begin": "<!-- mir:profile:role-policy:begin -->",
+          "marker_end": "<!-- mir:profile:role-policy:end -->",
+          "render_module": "tools.profile_compiler",
+          "render_args": [
+            "--family",
+            "claude-codex-harness",
+            "--dry-run",
+            "--target",
+            "role-policy"
+          ],
+          "source": ".mir/repo-profile.toml",
+          "skip_if_source_absent": true
+        }
+      ]
+    },
+    "removed_symbol_references": {
+      "scan_dirs": [
+        "tools",
+        "scripts",
+        "src",
+        ".claude/hooks"
+      ],
+      "file_globs": [
+        "*.py",
+        "*.sh"
+      ],
+      "allowed_path_substrings": [
+        ".claude/hooks/archive/",
+        "__pycache__",
+        "scripts/build_session_upfront_context.py"
+      ],
+      "retired_symbols": []
+    },
+    "hook_file_reachability": {
+      "hooks_dir": ".claude/hooks",
+      "file_globs": [
+        "*.sh",
+        "*.py"
+      ],
+      "settings_files": [
+        ".claude/settings.json",
+        ".claude/settings.local.json"
+      ],
+      "archive_exclude": ".claude/hooks/archive/",
+      "manual_trigger_allowlist": []
+    },
+    "wired_gate_liveness": {
+      "gates": []
+    },
+    "archived_source_phase_doc": {
+      "hook_archive_dir": ".claude/hooks/archive",
+      "settings_files": [
+        ".claude/settings.json",
+        ".claude/settings.local.json"
+      ],
+      "phase_doc_globs": [
+        "docs/harness-engineering/phase-*.md",
+        "docs/harness-engineering/applications/mir-self/phase-*.md"
+      ],
+      "live_claim_keywords": [
+        "land",
+        "landed",
+        "scripted"
+      ],
+      "exempt_token": "ARCHIVED",
+      "archived_hook_names": []
+    },
+    "code_schema_constraint_agreement": {
+      "pairs": []
+    },
+    "adr_artifact_present": {
+      "artifact_map": {}
+    },
+    "hook_tier_declaration": {
+      "hooks_dir": ".claude/hooks",
+      "marker_prefix": "_MIR_HOOK_TIER",
+      "expected_tiers": {}
+    }
+  }
+}
