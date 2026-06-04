@@ -20,7 +20,6 @@
 - Runtime overrides must be recorded in `tasks/plan.md` or the active handoff.
 
 ## Verification Boundary
-- `scripts/verify_codex_sync.py` validates generated Codex surface drift against the local generator.
 - `scripts/verify_context_paths.py` validates required-read and context-doc path references.
 - `tasks/tdd.json` remains the implementation proof ledger for code changes.
 

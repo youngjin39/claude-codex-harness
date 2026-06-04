@@ -7,11 +7,6 @@
     "note": "Irreducible rule_inputs (retired_symbols, gate_liveness, code_schema pairs, artifact_map, manual_trigger_allowlist) are empty and must be hand-tuned per family; derivable sections were introspected. Run `python -m tools.harness_consistency run` and tune until green. In --green mode, ERROR rules listed in disabled_rules were auto-disabled because they ERROR on this repo and should be re-enabled after the family adds the prerequisite or tunes the input.",
     "disabled_rules": [
       {
-        "rule_id": "R2",
-        "rule_name": "context_path_references",
-        "error_findings": 1
-      },
-      {
         "rule_id": "R3",
         "rule_name": "single_family_source",
         "error_findings": 3
@@ -83,7 +78,7 @@
       "id": "R2",
       "name": "context_path_references",
       "severity": "ERROR",
-      "enabled": false,
+      "enabled": true,
       "drift_class": 1
     },
     {
