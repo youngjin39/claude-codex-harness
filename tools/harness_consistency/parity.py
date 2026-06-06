@@ -650,10 +650,13 @@ def template_parity(project_root: Path, rule_inputs: dict) -> list[Finding]:
     if stale_finding:
         findings.append(stale_finding)
 
-    # Get repo slug for parameterized normalization
-    # Runner loads the manifest and passes slug via rule_inputs context
-    # Fall back to directory name if not available
-    repo_slug = str(rule_inputs.get("repo_slug") or project_root.name)
+    # Get repo slug for parameterized normalization.
+    # When template_repo_str == '.' this is a template self-check:
+    # use _TEMPLATE_SLUG ('your-harness') so parameterized normalization matches.
+    if template_repo_str == '.':
+        repo_slug = _TEMPLATE_SLUG
+    else:
+        repo_slug = str(rule_inputs.get('repo_slug') or project_root.name)
 
     # Per-file verdicts
     behind_files: list[str] = []
