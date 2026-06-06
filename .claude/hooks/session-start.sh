@@ -76,7 +76,7 @@ $(head -30 "$PROJECT_DIR/tasks/lessons.md")
 fi
 
 _OUT+="
-Context depth on demand: mir context pull \"<query>\" (--history for archived/expired)
+Context depth on demand: uv run mir context pull \"<query>\" (--history for archived/expired)
 === END SESSION CONTEXT ===
 "
 
@@ -86,7 +86,7 @@ Context depth on demand: mir context pull \"<query>\" (--history for archived/ex
 # underestimates multibyte (e.g. Korean) content in a UTF-8 locale.
 _BYTE_LIMIT=10240
 _MARKER="
-[context truncated at ${_BYTE_LIMIT} bytes — use mir context pull for details]
+[context truncated at ${_BYTE_LIMIT} bytes — use uv run mir context pull for details]
 "
 _BYTE_LEN=$(printf '%s' "$_OUT" | wc -c | tr -d ' \t')
 if [ "$_BYTE_LEN" -gt "$_BYTE_LIMIT" ]; then

@@ -24,11 +24,11 @@
 
 ## Memory (DB-canonical)
 - The canonical long-term memory store is `.mir/memory.db` (SQLite + FTS5 + sqlite-vec). `docs/memory-map.md` and `tasks/lessons.md` are **generated projections** of the DB, not hand-maintained indexes.
-- Init / migrate: `mir migrate up` (creates `.mir/memory.db`, applies pending migrations). Run this once after cloning.
-- Recall: `mir memory query <keyword>` (FTS5 keyword search).
-- Capture a doc: add frontmatter, then `mir memory ingest-md docs/<category>/<topic>.md` (deterministic, no LLM).
-- Capture a lesson: `mir memory insert --predicate lesson --subject <slug> --object "<rule>"`.
-- Regenerate the md views: `mir memory render --target memory-map --apply --output-path docs/memory-map.md` (and `--target lessons --output-path tasks/lessons.md`). Never hand-edit inside the `mir:generated` markers.
+- Init / migrate: `uv run mir migrate up` (creates `.mir/memory.db`, applies pending migrations). Run this once after cloning.
+- Recall: `uv run mir memory query <keyword>` (FTS5 keyword search).
+- Capture a doc: add frontmatter, then `uv run mir memory ingest-md docs/<category>/<topic>.md` (deterministic, no LLM).
+- Capture a lesson: `uv run mir memory insert --predicate lesson --subject <slug> --object "<rule>"`.
+- Regenerate the md views: `uv run mir memory render --target memory-map --apply --output-path docs/memory-map.md` (and `--target lessons --output-path tasks/lessons.md`). Never hand-edit inside the `mir:generated` markers.
 
 ## Build & Run
 - Starter-only configuration. Update commands when a concrete code product is added.

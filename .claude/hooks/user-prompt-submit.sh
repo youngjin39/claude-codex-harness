@@ -4,7 +4,7 @@
 #
 # Reads JSON from stdin: {"prompt": "..."}
 # Skips: prompts < 40 chars; prompts starting with '/' (slash commands).
-# Emits: exactly one "[context-pull] Candidate retrieval: mir context pull \"<terms>\""
+# Emits: exactly one "[context-pull] Candidate retrieval: uv run mir context pull \"<terms>\""
 #
 # tier: warn — advisory only, never blocks.
 _MIR_HOOK_TIER="warn"
@@ -64,4 +64,4 @@ if [ -z "$_TERMS" ]; then
   exit 0
 fi
 
-echo "[context-pull] Candidate retrieval: mir context pull \"$_TERMS\""
+echo "[context-pull] Candidate retrieval: uv run mir context pull \"$_TERMS\""
