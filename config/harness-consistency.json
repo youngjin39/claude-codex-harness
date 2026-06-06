@@ -133,6 +133,13 @@
       "severity": "WARN",
       "enabled": true,
       "drift_class": 5
+    },
+    {
+      "id": "R16",
+      "name": "template_parity",
+      "severity": "WARN",
+      "enabled": true,
+      "drift_class": 8
     }
   ],
   "rule_inputs": {
@@ -284,6 +291,11 @@
       "hooks_dir": ".claude/hooks",
       "marker_prefix": "_MIR_HOOK_TIER",
       "expected_tiers": {}
+    },
+    "template_parity": {
+      "template_repo": ".",
+      "manifest_path": "config/parity-manifest.json",
+      "probes_enabled": true
     }
   }
 }

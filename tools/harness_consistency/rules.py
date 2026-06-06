@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from tools.harness_consistency.models import Finding
+from tools.harness_consistency.parity import template_parity as _template_parity_impl
 
 _REPOSITORIES_INDEX_RE = re.compile(r"\[\s*['\"]repositories['\"]\s*\]")
 _EMPTY_ADR_REFERENCES = {"", "null", "(none)", "[]"}
@@ -860,4 +861,5 @@ RULES = {
     "settings_dual_fire_dedup": settings_dual_fire_dedup,
     "single_family_source": single_family_source,
     "wired_gate_liveness": wired_gate_liveness,
+    "template_parity": _template_parity_impl,
 }

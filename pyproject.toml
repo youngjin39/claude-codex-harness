@@ -41,7 +41,7 @@ packages = ["src/mir"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "tools"]
-pythonpath = ["src"]
+pythonpath = [".", "src"]
 asyncio_mode = "auto"
 
 [tool.ruff]
