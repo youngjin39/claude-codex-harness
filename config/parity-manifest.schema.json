@@ -63,6 +63,12 @@
       "items": {
         "$ref": "#/definitions/file"
       }
+    },
+    "removed_paths": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/removed_path"
+      }
     }
   },
   "definitions": {
@@ -275,6 +281,46 @@
           }
         }
       ]
+    },
+    "removed_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "removed_at",
+        "last_hashes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "removed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_hashes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/sha256"
+          }
+        },
+        "renamed_to": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ownership_class": {
+          "enum": [
+            "verbatim",
+            "parameterized",
+            "marker-block",
+            "managed-keys"
+          ]
+        },
+        "params": {
+          "$ref": "#/definitions/params"
+        }
+      }
     }
   }
 }

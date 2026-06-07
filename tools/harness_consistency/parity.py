@@ -54,6 +54,10 @@ _KNOWN_OWNERSHIP_CLASSES = {
 }
 
 
+def _utcnow() -> datetime.datetime:
+    return datetime.datetime.now(datetime.UTC)
+
+
 # ---------------------------------------------------------------------------
 # Normalization helpers
 # ---------------------------------------------------------------------------
@@ -326,6 +330,93 @@ def _git_history_hashes(
     return hashes
 
 
+def _read_prior_manifest(template_repo: Path, output_path: Path | None) -> dict:
+    prior_path = template_repo / "config" / "parity-manifest.json"
+    if output_path is not None and output_path.exists():
+        try:
+            output_differs = output_path.resolve() != prior_path.resolve()
+        except OSError:
+            output_differs = output_path != prior_path
+        if output_differs:
+            prior_path = output_path
+
+    try:
+        return json.loads(prior_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _entry_last_hashes(entry: dict) -> list[str]:
+    hashes: list[str] = []
+    for candidate in [entry.get("hash"), *entry.get("previous_hashes", [])]:
+        if candidate is not None and candidate not in hashes:
+            hashes.append(candidate)
+    return hashes
+
+
+def _compute_removed_paths(
+    prior_manifest: dict,
+    classes_data: dict,
+    new_file_entries: list[dict],
+    template_repo: Path,
+    *,
+    now: datetime.datetime,
+) -> list[dict]:
+    new_paths = {entry["path"] for entry in new_file_entries}
+    prior_paths = {
+        entry.get("path")
+        for entry in prior_manifest.get("files", [])
+        if entry.get("path")
+    }
+    newly_added_entries = [
+        entry for entry in new_file_entries if entry.get("path") not in prior_paths
+    ]
+    retired = set(classes_data.get("retired_tombstones", []))
+    removed_by_path: dict[str, dict] = {}
+
+    for prior_entry in prior_manifest.get("files", []):
+        path_str = prior_entry.get("path")
+        ownership_class = prior_entry.get("ownership_class")
+        if not path_str or ownership_class == "family-owned":
+            continue
+        if path_str in new_paths or path_str in retired:
+            continue
+        if (template_repo / path_str).exists():
+            continue
+
+        tombstone = {
+            "path": path_str,
+            "removed_at": now.isoformat(),
+            "last_hashes": _entry_last_hashes(prior_entry),
+            "ownership_class": ownership_class,
+        }
+        if "params" in prior_entry:
+            tombstone["params"] = prior_entry["params"]
+
+        rename_candidates = [
+            new_entry["path"]
+            for new_entry in newly_added_entries
+            if new_entry.get("ownership_class") == ownership_class
+            and new_entry.get("hash") in tombstone["last_hashes"]
+        ]
+        if len(rename_candidates) == 1:
+            tombstone["renamed_to"] = rename_candidates[0]
+
+        removed_by_path[path_str] = tombstone
+
+    for carried in prior_manifest.get("removed_paths", []):
+        path_str = carried.get("path")
+        if not path_str or path_str in removed_by_path:
+            continue
+        if path_str in new_paths or path_str in retired:
+            continue
+        if (template_repo / path_str).exists():
+            continue
+        removed_by_path[path_str] = dict(carried)
+
+    return [removed_by_path[path] for path in sorted(removed_by_path)]
+
+
 def generate_parity_manifest(
     template_repo: Path,
     parity_classes_path: Path,
@@ -338,6 +429,8 @@ def generate_parity_manifest(
     """
     classes_data = json.loads(parity_classes_path.read_text(encoding="utf-8"))
     files_spec = classes_data["files"]
+    _now = _utcnow()
+    prior_manifest = _read_prior_manifest(template_repo, output_path)
 
     # Resolve template version and commit
     version_file = template_repo / "VERSION"
@@ -425,7 +518,7 @@ def generate_parity_manifest(
     manifest = {
         "template_version": template_version,
         "template_commit": template_commit,
-        "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),
+        "generated_at": _now.isoformat(),
         "normalization": {
             "verbatim": "sha256 of LF-normalized raw bytes",
             "parameterized": (
@@ -442,6 +535,13 @@ def generate_parity_manifest(
             "template_slug": _TEMPLATE_SLUG,
         },
         "files": file_entries,
+        "removed_paths": _compute_removed_paths(
+            prior_manifest,
+            classes_data,
+            file_entries,
+            template_repo,
+            now=_now,
+        ),
     }
 
     if output_path is not None:
@@ -716,6 +816,61 @@ def _check_file_verdict(
     return "LOCAL_DIVERGED", f"hash mismatch: {path_str}"
 
 
+def _removed_path_finding(
+    path_str: str,
+    status: str,
+    renamed_to: str | None = None,
+) -> Finding:
+    message = f"removed path still present ({status}): {path_str}"
+    if renamed_to:
+        message += f" — renamed to {renamed_to}"
+    return Finding(
+        rule_id="R16",
+        rule_name="template_parity",
+        severity="WARN",
+        message=message,
+        location=path_str,
+        drift_class=8,
+    )
+
+
+def _check_removed_path(
+    project_root: Path,
+    removed_entry: dict,
+    repo_slug: str,
+    exclude_paths: set[str],
+) -> Finding | None:
+    path_str = "<unknown>"
+    renamed_to: str | None = None
+    try:
+        path_str = str(removed_entry["path"])
+        renamed_to = removed_entry.get("renamed_to")
+        if path_str in exclude_paths:
+            return None
+
+        live_path = project_root / path_str
+        if not live_path.exists():
+            return None
+
+        try:
+            raw = live_path.read_text(encoding="utf-8")
+            normalized = _normalize_content(
+                raw,
+                removed_entry["ownership_class"],
+                removed_entry.get("params", {}),
+                slug=repo_slug,
+            )
+            live_hash = _sha256(normalized)
+            if live_hash in (removed_entry.get("last_hashes") or []):
+                return _removed_path_finding(path_str, "known-stale", renamed_to)
+        except Exception:
+            pass
+
+        return _removed_path_finding(path_str, "orphaned", renamed_to)
+    except Exception:
+        return _removed_path_finding(path_str, "orphaned", renamed_to)
+
+
 def template_parity(project_root: Path, rule_inputs: dict) -> list[Finding]:
     """R16 template_parity checker rule.
 
@@ -897,6 +1052,16 @@ def template_parity(project_root: Path, rule_inputs: dict) -> list[Finding]:
             location="config/parity-manifest.json",
             drift_class=8,
         ))
+
+    for removed_entry in manifest.get("removed_paths", []):
+        removed_finding = _check_removed_path(
+            project_root,
+            removed_entry,
+            repo_slug,
+            exclude_paths,
+        )
+        if removed_finding:
+            findings.append(removed_finding)
 
     # Probes
     if probes_enabled:
