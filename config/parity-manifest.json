@@ -1,7 +1,7 @@
 {
   "template_version": "0.4.0",
-  "template_commit": "b354d95a41c3c10c51b3eb6d9b697d2376f557f6",
-  "generated_at": "2026-06-07T14:12:53.733953+00:00",
+  "template_commit": "bf4d1a60041947cef8b884e63c018a09c51d0a93",
+  "generated_at": "2026-06-07T18:05:29.012673+00:00",
   "normalization": {
     "verbatim": "sha256 of LF-normalized raw bytes",
     "parameterized": "sha256 after slug normalization (your-harness / repo.slug \u2192 {{SLUG}})",
