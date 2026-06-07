@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -845,6 +847,296 @@ def generated_marker_rerender(project_root: Path, rule_inputs: dict) -> list[Fin
     return findings
 
 
+def agent_surface_contract(project_root: Path, rule_inputs: dict) -> list[Finding]:
+    """R17: declared-must-exist / registered-must-run for 6 agent surface classes.
+
+    Sub-checks:
+    1. cited_paths:    backtick-quoted slashed paths in CLAUDE.md must exist on disk.
+    2. hook_scripts:   .sh/.py tokens in hook commands must exist; bare (no interpreter
+                       prefix) scripts must also be executable.
+    3. agents_front:   .claude/agents/*.md (excluding README*/INDEX*/RECOVERY*) must
+                       start with --- frontmatter containing 'name:'.
+    4. skills_struct:  each directory under .claude/skills/ must contain SKILL.md.
+    5. mirror_contract: if AGENTS.md exists, the mirror_heading must appear in both
+                        CLAUDE.md and AGENTS.md.
+    6. marker_pairs:   marker_surfaces files must have equal counts of
+                       {memory_marker}:start and {memory_marker}:end; 0/0 is a finding.
+    """
+    findings: list[Finding] = []
+
+    # ---- 1. cited_paths -------------------------------------------------------
+    claude_md_rel = rule_inputs.get("claude_md", "CLAUDE.md")
+    claude_md_path = project_root / claude_md_rel
+    if claude_md_path.exists():
+        content = claude_md_path.read_text(encoding="utf-8")
+        # Match backtick-quoted tokens that contain at least one slash and end in a
+        # recognised extension. Exclude placeholders containing {}, <>, or a
+        # leading slash (absolute paths are not project-relative citations).
+        _CITED_PATH_RE = re.compile(
+            r"`([^`]*?/[^`]*?\.(?:md|yaml|yml|json|sh|py|toml))`"
+        )
+        for m in _CITED_PATH_RE.finditer(content):
+            token = m.group(1)
+            # Skip inline commands (contain spaces) — only bare paths, not commands
+            if " " in token:
+                continue
+            # Skip placeholders
+            if any(c in token for c in ("{", "}", "<", ">")):
+                continue
+            if token.startswith("/"):
+                continue
+            target = project_root / token
+            if not target.exists():
+                findings.append(
+                    Finding(
+                        rule_id="R17",
+                        rule_name="agent_surface_contract",
+                        severity="ERROR",
+                        message=(
+                            f"cited_paths: {token} referenced in {claude_md_rel} does not exist"
+                        ),
+                        location=claude_md_rel,
+                        drift_class=8,
+                    )
+                )
+
+    # ---- 2. hook_scripts ------------------------------------------------------
+    _INTERPRETERS = {"bash", "sh", "zsh", "python", "python3", "uv"}
+    _SCRIPT_TOKEN_RE = re.compile(r"\S+\.(?:sh|py)\b")
+    settings_files = rule_inputs.get("settings_files", [
+        ".claude/settings.json",
+        ".claude/settings.local.json",
+    ])
+    for sf_rel in settings_files:
+        sf_path = project_root / sf_rel
+        if not sf_path.exists():
+            continue
+        try:
+            sf_data = json.loads(sf_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        hooks_block = sf_data.get("hooks", {})
+        # Flatten all command strings from hooks block (dict of lists of hook dicts)
+        commands: list[str] = []
+        if isinstance(hooks_block, dict):
+            for _event, entries in hooks_block.items():
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        continue
+                    # entries can be list-of-hook-groups or direct hook dict
+                    sub_hooks = entry.get("hooks", [entry])
+                    if not isinstance(sub_hooks, list):
+                        sub_hooks = [entry]
+                    for h in sub_hooks:
+                        if not isinstance(h, dict):
+                            continue
+                        cmd = h.get("command", "")
+                        if cmd:
+                            commands.append(cmd)
+        for cmd in commands:
+            # Resolve $CLAUDE_PROJECT_DIR or ${CLAUDE_PROJECT_DIR}
+            cmd_resolved = cmd.replace("$CLAUDE_PROJECT_DIR", str(project_root))
+            cmd_resolved = cmd_resolved.replace("${CLAUDE_PROJECT_DIR}", str(project_root))
+            tokens = shlex.split(cmd_resolved)
+            if not tokens:
+                continue
+            first_token = tokens[0]
+            has_interpreter = first_token in _INTERPRETERS
+            # Find all .sh/.py tokens in the command
+            for token in tokens:
+                if not _SCRIPT_TOKEN_RE.search(token):
+                    continue
+                # Strip surrounding quotes that may come from shell quoting
+                clean_token = token.strip("\"'")
+                # Resolve path: if relative, relative to project_root
+                script_path = Path(clean_token)
+                if not script_path.is_absolute():
+                    script_path = project_root / clean_token
+                if not script_path.exists():
+                    findings.append(
+                        Finding(
+                            rule_id="R17",
+                            rule_name="agent_surface_contract",
+                            severity="ERROR",
+                            message=(
+                                f"hook_scripts: command references missing script {clean_token} "
+                                f"(in {sf_rel})"
+                            ),
+                            location=sf_rel,
+                            drift_class=8,
+                        )
+                    )
+                elif not has_interpreter and not os.access(script_path, os.X_OK):
+                    findings.append(
+                        Finding(
+                            rule_id="R17",
+                            rule_name="agent_surface_contract",
+                            severity="ERROR",
+                            message=(
+                                f"hook_scripts: script {clean_token} exists but lacks exec bit "
+                                f"(bare command, no interpreter prefix) in {sf_rel}"
+                            ),
+                            location=sf_rel,
+                            drift_class=8,
+                        )
+                    )
+
+    # ---- 3. agents_frontmatter ------------------------------------------------
+    agents_dir_rel = rule_inputs.get("agents_dir", ".claude/agents")
+    agents_dir = project_root / agents_dir_rel
+    _EXCLUDE_PREFIXES = ("README", "INDEX", "RECOVERY")
+    if agents_dir.is_dir():
+        for agent_file in sorted(agents_dir.glob("*.md")):
+            if agent_file.name.startswith(_EXCLUDE_PREFIXES):
+                continue
+            lines = agent_file.read_text(encoding="utf-8").splitlines()
+            rel = _relative_location(project_root, agent_file)
+            # Must start with --- and have a closing --- with 'name:' inside
+            if not lines or lines[0].strip() != "---":
+                findings.append(
+                    Finding(
+                        rule_id="R17",
+                        rule_name="agent_surface_contract",
+                        severity="ERROR",
+                        message=(
+                            f"agents_frontmatter: {agent_file.name} missing opening --- frontmatter"
+                        ),
+                        location=rel,
+                        drift_class=8,
+                    )
+                )
+                continue
+            # Find closing ---
+            close_idx = None
+            for i, ln in enumerate(lines[1:], 1):
+                if ln.strip() == "---":
+                    close_idx = i
+                    break
+            if close_idx is None:
+                findings.append(
+                    Finding(
+                        rule_id="R17",
+                        rule_name="agent_surface_contract",
+                        severity="ERROR",
+                        message=(
+                            f"agents_frontmatter: {agent_file.name} frontmatter block not closed"
+                        ),
+                        location=rel,
+                        drift_class=8,
+                    )
+                )
+                continue
+            fm_block = "\n".join(lines[1:close_idx])
+            if not re.search(r"^name\s*:", fm_block, re.MULTILINE):
+                findings.append(
+                    Finding(
+                        rule_id="R17",
+                        rule_name="agent_surface_contract",
+                        severity="ERROR",
+                        message=(
+                            f"agents_frontmatter: {agent_file.name} frontmatter "
+                            f"missing 'name:' field"
+                        ),
+                        location=rel,
+                        drift_class=8,
+                    )
+                )
+
+    # ---- 4. skills_structure --------------------------------------------------
+    skills_dir_rel = rule_inputs.get("skills_dir", ".claude/skills")
+    skills_dir = project_root / skills_dir_rel
+    if skills_dir.is_dir():
+        for skill_subdir in sorted(skills_dir.iterdir()):
+            if not skill_subdir.is_dir():
+                continue
+            skill_md = skill_subdir / "SKILL.md"
+            if not skill_md.exists():
+                rel = _relative_location(project_root, skill_subdir)
+                findings.append(
+                    Finding(
+                        rule_id="R17",
+                        rule_name="agent_surface_contract",
+                        severity="ERROR",
+                        message=(
+                            f"skills_structure: skill directory {skill_subdir.name} has no SKILL.md"
+                        ),
+                        location=rel,
+                        drift_class=8,
+                    )
+                )
+
+    # ---- 5. mirror_contract ---------------------------------------------------
+    agents_md_rel = rule_inputs.get("agents_md", "AGENTS.md")
+    agents_md_path = project_root / agents_md_rel
+    mirror_heading = rule_inputs.get("mirror_heading", "## Memory (DB-canonical")
+    if agents_md_path.exists() and claude_md_path.exists():
+        claude_text = claude_md_path.read_text(encoding="utf-8")
+        agents_text = agents_md_path.read_text(encoding="utf-8")
+        if mirror_heading in claude_text and mirror_heading not in agents_text:
+            findings.append(
+                Finding(
+                    rule_id="R17",
+                    rule_name="agent_surface_contract",
+                    severity="ERROR",
+                    message=(
+                        f"mirror_contract: '{mirror_heading}' present in {claude_md_rel} "
+                        f"but missing from AGENTS.md"
+                    ),
+                    location=agents_md_rel,
+                    drift_class=8,
+                )
+            )
+
+    # ---- 6. marker_pairs ------------------------------------------------------
+    memory_marker = rule_inputs.get("memory_marker", "mir:generated")
+    marker_start = f"{memory_marker}:start"
+    marker_end = f"{memory_marker}:end"
+    marker_surfaces = rule_inputs.get("marker_surfaces", [
+        "docs/memory-map.md",
+        "tasks/lessons.md",
+    ])
+    for surface_rel in marker_surfaces:
+        surface_path = project_root / surface_rel
+        if not surface_path.exists():
+            # absent optional surface is OK (lessons.md may not exist in new repos)
+            continue
+        text = surface_path.read_text(encoding="utf-8")
+        count_start = text.count(marker_start)
+        count_end = text.count(marker_end)
+        if count_start == 0 and count_end == 0:
+            findings.append(
+                Finding(
+                    rule_id="R17",
+                    rule_name="agent_surface_contract",
+                    severity="ERROR",
+                    message=(
+                        f"marker_pairs: {surface_rel} has no {memory_marker} markers "
+                        f"(expected at least one start/end pair)"
+                    ),
+                    location=surface_rel,
+                    drift_class=8,
+                )
+            )
+        elif count_start != count_end:
+            findings.append(
+                Finding(
+                    rule_id="R17",
+                    rule_name="agent_surface_contract",
+                    severity="ERROR",
+                    message=(
+                        f"marker_pairs: {surface_rel} has unbalanced {memory_marker} markers "
+                        f"(start={count_start}, end={count_end})"
+                    ),
+                    location=surface_rel,
+                    drift_class=8,
+                )
+            )
+
+    return findings
+
+
 RULES = {
     "adr_artifact_present": adr_artifact_present,
     "adr_status_enum": adr_status_enum,
@@ -862,4 +1154,5 @@ RULES = {
     "single_family_source": single_family_source,
     "wired_gate_liveness": wired_gate_liveness,
     "template_parity": _template_parity_impl,
+    "agent_surface_contract": agent_surface_contract,
 }

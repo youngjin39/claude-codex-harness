@@ -51,7 +51,7 @@ def test_build_manifest_real_repo_section_and_rules() -> None:
             "tools_tdd_ledger": "keyed_composite",
         },
     }
-    assert len(manifest["rules"]) == 16
+    assert len(manifest["rules"]) == 17
     # template source manifest has R3+R8 disabled
     assert manifest["_generated"]["repo_slug"] == "claude-codex-harness"
     assert "repo_root" not in manifest["_generated"]
@@ -328,3 +328,59 @@ def test_build_rule_inputs_template_target_gets_dot_template_repo(tmp_path: Path
     assert tp["template_repo"] == ".", (
         f"Expected template_repo == '.', got {tp['template_repo']!r}"
     )
+
+
+def test_build_manifest_rule_inputs_contains_agent_surface_contract(
+    tmp_path: Path,
+) -> None:
+    from tools.harness_consistency.generate import _build_rule_inputs
+
+    agent_surface_contract = {
+        "claude_md": "CLAUDE.md",
+        "agents_dir": ".claude/agents",
+        "skills_dir": ".claude/skills",
+        "settings_files": [".claude/settings.json", ".claude/settings.local.json"],
+        "agents_md": "AGENTS.md",
+        "memory_marker": "mir:generated",
+        "marker_surfaces": ["docs/memory-map.md", "tasks/lessons.md"],
+        "mirror_heading": "## Memory (DB-canonical",
+    }
+    source_inputs = {
+        **_STUB_SOURCE_INPUTS,
+        "agent_surface_contract": agent_surface_contract,
+    }
+
+    result = _build_rule_inputs(
+        tmp_path,
+        source_inputs,
+        source_slug="mir-harness",
+        target_slug="some-family",
+    )
+
+    assert "agent_surface_contract" in result
+    expected_keys = {
+        "claude_md",
+        "agents_dir",
+        "skills_dir",
+        "settings_files",
+        "agents_md",
+        "memory_marker",
+        "marker_surfaces",
+        "mirror_heading",
+    }
+    assert expected_keys <= result["agent_surface_contract"].keys()
+
+
+def test_build_manifest_real_repo_rule_inputs_has_agent_surface_contract() -> None:
+    manifest = build_manifest(
+        PROJECT_ROOT,
+        PROJECT_ROOT / "config" / "repos" / "claude-codex-harness.json",
+    )
+
+    assert "agent_surface_contract" in manifest["rule_inputs"]
+    expected_keys = {
+        "claude_md",
+        "agents_dir",
+        "settings_files",
+    }
+    assert expected_keys <= manifest["rule_inputs"]["agent_surface_contract"].keys()

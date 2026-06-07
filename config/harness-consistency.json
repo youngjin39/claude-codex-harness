@@ -140,6 +140,13 @@
       "severity": "WARN",
       "enabled": true,
       "drift_class": 8
+    },
+    {
+      "id": "R17",
+      "name": "agent_surface_contract",
+      "severity": "ERROR",
+      "enabled": true,
+      "drift_class": 8
     }
   ],
   "rule_inputs": {
@@ -296,6 +303,16 @@
       "template_repo": ".",
       "manifest_path": "config/parity-manifest.json",
       "probes_enabled": true
+    },
+    "agent_surface_contract": {
+      "claude_md": "CLAUDE.md",
+      "agents_dir": ".claude/agents",
+      "skills_dir": ".claude/skills",
+      "settings_files": [".claude/settings.json", ".claude/settings.local.json"],
+      "agents_md": "AGENTS.md",
+      "memory_marker": "mir:generated",
+      "marker_surfaces": ["docs/memory-map.md", "tasks/lessons.md"],
+      "mirror_heading": "## Memory (DB-canonical"
     }
   }
 }

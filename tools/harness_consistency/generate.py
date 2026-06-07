@@ -185,6 +185,11 @@ def _build_rule_inputs(
     rule_inputs["code_schema_constraint_agreement"] = {"pairs": []}
     rule_inputs["adr_artifact_present"] = {"artifact_map": {}}
 
+    if "agent_surface_contract" in source_inputs:
+        rule_inputs["agent_surface_contract"] = copy.deepcopy(
+            source_inputs["agent_surface_contract"]
+        )
+
     rule_inputs["hook_tier_declaration"] = _copy_selected(
         source_inputs["hook_tier_declaration"],
         _HOOK_TIER_KEYS,
