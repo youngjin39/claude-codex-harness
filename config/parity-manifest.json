@@ -1,7 +1,7 @@
 {
   "template_version": "0.4.0",
-  "template_commit": "ba10f75462554cd53a5f2abd8a0cdef5148778f2",
-  "generated_at": "2026-06-07T18:50:59.609336+00:00",
+  "template_commit": "3c5d324d05d8fab44a5e5021edf43462a7f240ec",
+  "generated_at": "2026-06-07T19:25:35.728398+00:00",
   "normalization": {
     "verbatim": "sha256 of LF-normalized raw bytes",
     "parameterized": "sha256 after slug normalization (your-harness / repo.slug \u2192 {{SLUG}})",
@@ -162,5 +162,6 @@
         "note": "rule catalog only; enabled/repo/rule_inputs/_generated excluded (A1-D2)"
       }
     }
-  ]
+  ],
+  "removed_paths": []
 }
