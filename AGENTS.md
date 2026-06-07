@@ -40,7 +40,7 @@
 - Code-development proof rule: design first, then maintain `tasks/tdd.json`, then implementation, then executed TDD evidence as the primary proof of correctness.
 
 ## Project Structure
-- Root control files: `CLAUDE.md`, `AGENTS.md`, `.mcp.json`, `setup.sh`, `README.md`
+- Root control files: `CLAUDE.md`, `AGENTS.md`, `.mcp.json` (optional — add if your project uses MCP servers), `setup.sh`, `README.md`
 - Harness rules: `.ai-harness/`
 - Runtime source: `.claude/`
 - Working state: `tasks/`
