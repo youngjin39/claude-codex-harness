@@ -1,11 +1,12 @@
 {
   "template_version": "0.4.0",
-  "template_commit": "bf4d1a60041947cef8b884e63c018a09c51d0a93",
-  "generated_at": "2026-06-07T18:05:29.012673+00:00",
+  "template_commit": "ba10f75462554cd53a5f2abd8a0cdef5148778f2",
+  "generated_at": "2026-06-07T18:50:59.609336+00:00",
   "normalization": {
     "verbatim": "sha256 of LF-normalized raw bytes",
     "parameterized": "sha256 after slug normalization (your-harness / repo.slug \u2192 {{SLUG}})",
     "marker-block": "sha256 of content between mir:adr53:context-core markers, rstripped+edge-stripped",
+    "managed-keys": "sha256 of named structured JSON projection",
     "family-owned": "excluded from hashing",
     "slug_placeholder": "{{SLUG}}",
     "template_slug": "your-harness"
@@ -146,6 +147,20 @@
       "previous_hashes": [
         "e3efc96c2c1cc76ce776f25543ffcf91138fb1f8d5719c42c2c9e8c7aa3cf4fe"
       ]
+    },
+    {
+      "path": "config/harness-consistency.json",
+      "ownership_class": "managed-keys",
+      "hash": "17ccbde4ba2b370e4f628ba8f47bc69c9eec0b26cd04932ed494bb197add07f2",
+      "previous_hashes": [
+        "148efc4bc9abe5d16a10d3e240de925819ee7798e5fa1668e6bc21d9d07f6d4b",
+        "552b42423e111b579bd4f83d6cb60d1a830e296af161d93ffa3113a060f7f8b4"
+      ],
+      "params": {
+        "projection": "rule-catalog-v1",
+        "history_depth": 40,
+        "note": "rule catalog only; enabled/repo/rule_inputs/_generated excluded (A1-D2)"
+      }
     }
   ]
 }
