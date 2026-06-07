@@ -883,6 +883,9 @@ def agent_surface_contract(project_root: Path, rule_inputs: dict) -> list[Findin
             # Skip placeholders
             if any(c in token for c in ("{", "}", "<", ">")):
                 continue
+            # Skip glob patterns — documentation globs describe file sets, not literal paths
+            if any(c in token for c in ("*", "?")):
+                continue
             if token.startswith("/"):
                 continue
             target = project_root / token

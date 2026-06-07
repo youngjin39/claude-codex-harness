@@ -1040,3 +1040,34 @@ def test_r17_runner_path_surfaces_dead_hook_finding(tmp_path):
         and r17_findings[0]["rule_name"] == "agent_surface_contract"
         and "dead-script.sh" in r17_findings[0]["message"]
     )
+
+def test_r17_glob_pattern_citation_not_flagged(tmp_path):
+    """cited_paths: glob-pattern citations (containing * or ?) must NOT produce a finding.
+
+    Field case: CLAUDE.md cites `.claude/skills/*/SKILL.md` (a documentation glob
+    describing 15 real on-disk files).  No literal path matching that string exists,
+    so the old filter incorrectly reported 'does not exist'.
+    """
+    from tools.harness_consistency.rules import agent_surface_contract
+
+    root = tmp_path / "glob_repo"
+    root.mkdir()
+    _write_text_r17(
+        root / "CLAUDE.md",
+        "Skills live at `.claude/skills/*/SKILL.md` and hooks at `.claude/hooks/pre-?.sh`.",
+    )
+    rule_inputs = {
+        "claude_md": "CLAUDE.md",
+        "agents_dir": ".claude/agents",
+        "skills_dir": ".claude/skills",
+        "settings_files": [],
+        "agents_md": "AGENTS.md",
+        "memory_marker": "mir:generated",
+        "marker_surfaces": [],
+        "mirror_heading": "## Memory",
+    }
+    findings = agent_surface_contract(root, rule_inputs)
+    cited = [f for f in findings if "cited_paths" in f.message]
+    assert cited == [], (
+        f"Glob-pattern citations must not produce cited_paths findings; got: {cited}"
+    )
