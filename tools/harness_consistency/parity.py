@@ -656,7 +656,40 @@ def template_parity(project_root: Path, rule_inputs: dict) -> list[Finding]:
     if template_repo_str == '.':
         repo_slug = _TEMPLATE_SLUG
     else:
-        repo_slug = str(rule_inputs.get('repo_slug') or project_root.name)
+        # 3-step slug resolution for fleet repos:
+        # 1. Explicit override in rule_inputs (highest precedence)
+        # 2. config/harness-consistency.json -> repo.slug
+        #    (Path read only — checker read-only contract)
+        # 3. project_root.name last-resort with an observable WARN finding
+        _explicit_slug = rule_inputs.get('repo_slug')
+        if _explicit_slug:
+            repo_slug = str(_explicit_slug)
+        else:
+            _cfg_slug: str | None = None
+            try:
+                _cfg_path = project_root / 'config' / 'harness-consistency.json'
+                _cfg_data = json.loads(_cfg_path.read_text(encoding='utf-8'))
+                _raw = _cfg_data.get('repo', {}).get('slug', '')
+                if isinstance(_raw, str) and _raw.strip():
+                    _cfg_slug = _raw.strip()
+            except Exception:
+                pass
+            if _cfg_slug:
+                repo_slug = _cfg_slug
+            else:
+                repo_slug = project_root.name
+                findings.append(Finding(
+                    rule_id='R16',
+                    rule_name='template_parity',
+                    severity='WARN',
+                    drift_class=8,
+                    location='config/harness-consistency.json',
+                    message=(
+                        f'slug unresolved from config: directory-name fallback '
+                        f"'{project_root.name}' used for parameterized normalization — "
+                        'verdicts for parameterized files may be unreliable'
+                    ),
+                ))
 
     # Per-file verdicts
     behind_files: list[str] = []
