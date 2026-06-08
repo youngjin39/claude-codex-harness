@@ -1,7 +1,7 @@
 {
   "template_version": "0.4.0",
-  "template_commit": "3c5d324d05d8fab44a5e5021edf43462a7f240ec",
-  "generated_at": "2026-06-07T19:25:35.728398+00:00",
+  "template_commit": "e98673aa15cd1f9a4f48985bdc0ca747d741d610",
+  "generated_at": "2026-06-08T16:35:11.352749+00:00",
   "normalization": {
     "verbatim": "sha256 of LF-normalized raw bytes",
     "parameterized": "sha256 after slug normalization (your-harness / repo.slug \u2192 {{SLUG}})",
@@ -52,8 +52,9 @@
     {
       "path": "src/mir/core/engine/memory/external_store.py",
       "ownership_class": "parameterized",
-      "hash": "3622f36325cf48a451f5e4a4c15ec2216d570709fb24ffa18dfd5e1e6cf5522c",
+      "hash": "db2095c7f5f367df49a5ee0c5cb94b0518c704712050f8e21c2863bf78b602f4",
       "previous_hashes": [
+        "3622f36325cf48a451f5e4a4c15ec2216d570709fb24ffa18dfd5e1e6cf5522c",
         "84c4823b83a98f8ebe8fb2c11164fe61447a072320f6079b5f93f2bd608ce063"
       ],
       "params": {
