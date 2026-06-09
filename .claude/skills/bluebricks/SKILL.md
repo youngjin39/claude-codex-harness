@@ -50,6 +50,7 @@ For each affected bluebrick, identify:
 - Avoid repeated file reads when the file has not changed.
 - Do not dump huge logs or whole diffs into context.
 - Use bounded output and targeted commands.
+- Scope reads/searches: `rg`/`grep` skip huge non-source artifacts (`*.sqlite*`, session/rollout logs, `.git`, `.venv`, `node_modules`) and avoid `--hidden`/`--no-ignore` on large trees; read large generated/data files by slice (`jq`/`grep`/ranged), not whole — override when the logs/data are the target.
 
 ## Sub-agent Policy
 Use sub-agent for:
