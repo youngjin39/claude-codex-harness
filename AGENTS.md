@@ -23,12 +23,8 @@
 - `docs/decisions/role-policy.md`
 
 ## Memory (DB-canonical)
-- The canonical long-term memory store is `.mir/memory.db` (SQLite + FTS5 + sqlite-vec). `docs/memory-map.md` and `tasks/lessons.md` are **generated projections** of the DB, not hand-maintained indexes.
-- Init / migrate: `uv run mir migrate up` (creates `.mir/memory.db`, applies pending migrations). Run this once after cloning.
-- Recall: `uv run mir memory query <keyword>` (FTS5 keyword search).
-- Capture a doc: add frontmatter, then `uv run mir memory ingest-md docs/<category>/<topic>.md` (deterministic, no LLM).
-- Capture a lesson: `uv run mir memory insert --predicate lesson --subject <slug> --object "<rule>"`.
-- Regenerate the md views: `uv run mir memory render --target memory-map --apply --output-path docs/memory-map.md` (and `--target lessons --output-path tasks/lessons.md`). Never hand-edit inside the `mir:generated` markers.
+- Canonical store: `.mir/memory.db` (SQLite + FTS5 + sqlite-vec). `docs/memory-map.md` and `tasks/lessons.md` are **generated projections** — never hand-edit inside `mir:generated` markers.
+- Bootstrap once after cloning: `uv run mir migrate up`. Recall: `uv run mir memory query <keyword>`. Full capture/render command suite: `uv run mir --help`.
 
 ## Build & Run
 - Starter-only configuration. Update commands when a concrete code product is added.
@@ -79,13 +75,8 @@
 - **Principle**: Core design (catalog / skill / agent / orchestration) must not depend on hooks for correctness. Hooks add (a) TDD enforcement on code surfaces, (b) Codex execution lane routing, and (c) verification automation. Hook enforcement must not leak into core design execution.
 
 ## Runtime Role Policy
-- Main agent parity: Claude main and Codex main share the same defaults for requirements clarification, architecture, design approval, orchestration, planning, dispatch, exception handling, verification synthesis, and final merge judgment.
-- Delegated sub-agents are the default execution plane for code writing, code modification, composite TDD execution, deterministic verification, code review, and bounded implementation research.
-- Codex-first backend default: use Codex for delegated backend-capable execution work unless an explicit override or capability constraint is recorded.
-- Runtime role override is conditional; main-agent parity remains the default contract.
-- Record every runtime override in `tasks/plan.md` or the active handoff note.
-- Project-level policy revision is a separate path.
-- Long-term policy changes must update `docs/decisions/role-policy.md`, this file, and its regressions together.
+- Full contract: §Role Policy (Template Profile) below (generated block — single SoT for parity/delegation/Codex-first defaults).
+- Record every runtime override in `tasks/plan.md` or the active handoff note. Long-term policy changes must update `docs/decisions/role-policy.md`, this file, and its regressions together.
 
 ## Language Protocol
 - User-facing output: match your team's language convention.
