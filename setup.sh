@@ -2,6 +2,7 @@
 # setup.sh — bootstrap claude-codex-harness in a fresh or existing repo.
 #
 # Idempotent. Run as many times as you like. Does not overwrite existing files.
+# Warns when placeholder values remain from the template (see §Placeholder guard below).
 
 set -euo pipefail
 
@@ -9,6 +10,8 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 say() { printf '%s\n' "$*"; }
+warn() { printf '[WARN] %s\n' "$*" >&2; }
+die() { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 
 say "claude-codex-harness setup ▸ root=$ROOT"
 
@@ -34,6 +37,7 @@ fi
 
 # 3. Ensure tasks/plan.md exists.
 if [ ! -f tasks/plan.md ]; then
+  mkdir -p tasks
   cat > tasks/plan.md <<'MD'
 # Plan
 
@@ -46,12 +50,64 @@ else
   say "• tasks/plan.md already present — left as-is"
 fi
 
-# 4. Reminder banner.
+# 4. Ensure .mir/repo-profile.toml exists (placeholder — edit before first use).
+if [ ! -f .mir/repo-profile.toml ]; then
+  mkdir -p .mir
+  cat > .mir/repo-profile.toml <<'TOML'
+# repo-profile.toml — family identity file.
+# Replace ALL placeholder values before committing. setup.sh warns while any remain.
+
+[repo]
+slug = "your-harness"
+display_name = "Your Harness"
+repository_type = "starter_template"
+rollout_class = "bootstrap_only"
+status = "active"
+
+[ownership]
+claude_role = "control_plane"
+codex_role = "code_tdd_review_plane"
+codex_default_enabled = true
+TOML
+  say "✓ .mir/repo-profile.toml created (placeholder — edit before committing)"
+else
+  say "• .mir/repo-profile.toml already present — left as-is"
+fi
+
+# 5. Placeholder guard — warn loudly if template defaults remain.
+PLACEHOLDER_HITS=0
+
+if grep -q 'slug = "your-harness"' .mir/repo-profile.toml 2>/dev/null; then
+  warn ".mir/repo-profile.toml: slug is still \"your-harness\" — set a real project slug"
+  PLACEHOLDER_HITS=$((PLACEHOLDER_HITS + 1))
+fi
+
+if grep -q 'display_name = "Your Harness"' .mir/repo-profile.toml 2>/dev/null; then
+  warn ".mir/repo-profile.toml: display_name is still \"Your Harness\" — set your project name"
+  PLACEHOLDER_HITS=$((PLACEHOLDER_HITS + 1))
+fi
+
+if grep -q 'family = "your-harness"' .claude/hooks/session-start.sh 2>/dev/null; then
+  warn ".claude/hooks/session-start.sh: family= is still \"your-harness\" — update the profile block"
+  PLACEHOLDER_HITS=$((PLACEHOLDER_HITS + 1))
+fi
+
+if [ "$PLACEHOLDER_HITS" -gt 0 ]; then
+  say
+  say "  $PLACEHOLDER_HITS placeholder(s) remain. Edit the files listed above before first commit."
+  say "  Re-run setup.sh after editing to verify all placeholders are cleared."
+fi
+
+# 6. Post-clone checklist banner.
 say
-say "Next:"
-say "  • Open this directory in Claude Code:  claude ."
-say "  • Or in Codex CLI:                     codex"
-say "  • Edit .ai-harness/deny-list.yaml to add patterns specific to your project."
-say "  • Edit CLAUDE.md and AGENTS.md to set the role policy."
+say "Post-clone setup checklist:"
+say "  [1] Set slug/display_name in .mir/repo-profile.toml (placeholder guard above catches leftovers)"
+say "  [2] Update family profile block in .claude/hooks/session-start.sh"
+say "  [3] Update CLAUDE.md + AGENTS.md role-policy table with real family name and scope"
+say "  [4] Run: ./setup.sh          (verify placeholder guard passes — 0 warnings)"
+say "  [5] Run: uv run mir migrate up   (initialize memory store)"
+say "  [6] Run: uv run mir parity check (verify baseline harness compliance)"
+say "  [7] Open in Claude Code:     claude ."
+say "  [8] Or in Codex CLI:         codex"
 say
-say "Both CLIs will auto-load the hooks on next launch."
+say "Both CLIs auto-load hooks on next launch."

@@ -1,5 +1,18 @@
 # Claude+Codex Harness Template — Opinionated Claude Code Starter
 
+## Template Purpose
+
+**This repo is the canonical harness engineering template.** `git clone` it when starting a new project to get a fully-configured harness structure immediately applicable.
+
+- `docs/harness-engineering/` — complete harness engineering reference (phases 0-14, applications, runbooks). Covers every phase from scratch to fleet-grade operation.
+- `.ai-harness/` — common AI execution rules, session closeout, TDD matrix, deny list, failure patterns, bluebricks.
+- `.claude/hooks/` — session-start (context-core, doc-guard, profile enforcement), pre-tool-use Codex routing, TDD guard, stop audit.
+- `.mir/repo-profile.toml` + `.mir-preserve.toml` + `.mir/boundary.md` — family profile files required by all active repos.
+- `CLAUDE.md` + `AGENTS.md` — replace placeholder family/slug values and update profile block after clone.
+
+**After clone**: (1) set `family=` in `.mir/repo-profile.toml` (setup.sh warns if placeholder remains), (2) replace `your-harness` slug in repo-profile.toml, (3) run `./setup.sh` to register hooks and create task files, (4) run `uv run mir parity check` to verify baseline compliance.
+
+
 ## Required Reads
 - `tasks/plan.md`
 - `tasks/lessons.md`

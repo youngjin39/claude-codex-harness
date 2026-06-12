@@ -6,6 +6,45 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 Pre-`v0.1.0` entries (below) used date-format headings (`## 2026.05.x`) and are kept for historical reference. All future entries use the `## [vN.M.X] — YYYY-MM-DD — title` format.
 
+## [0.5.0] — 2026-06-13 — Template completeness release
+
+Closed the template completeness gap: a fresh `git clone` now yields an
+immediately applicable harness with the full docs/harness-engineering set,
+a post-clone setup checklist, and all missing harness components.
+
+### Added
+
+- `docs/harness-engineering/`: ported 62 files from prompt_DEV 2026-06-11 baseline
+  (phases 0–14, applications, appendix, mir-roles, active-agents gap, context-surface
+  reduction, phase-N-baseline stubs, sanitize-glossary). Total: 79 tracked files.
+- `## Template Purpose` section in `CLAUDE.md` — post-clone instructions and
+  component inventory (sanitized from prompt_DEV a052747).
+- `setup.sh`: placeholder guard — warns while `slug = "your-harness"` or
+  `display_name = "Your Harness"` remain in `.mir/repo-profile.toml`, or while
+  `family= "your-harness"` remains in `session-start.sh`. Post-clone checklist
+  banner (8-step path to working harness).
+- `.mir/repo-profile.toml`: auto-created by setup.sh on first run (placeholder values).
+- `.mir-preserve.toml`: lists preserved dirs/sections so fleet rollout skips template
+  harness-engineering + decision docs.
+- `.mir/boundary.md`: generic allowed/blocked policy for this template.
+- `.claude/skills/memory-gc/SKILL.md`: GC scan skill (user-triggered only).
+- `.claude/hooks/_lib/invocation_log.sh`: phase-6 usage telemetry helper.
+- `.claude/hooks/_lib/tier_dispatch.sh`: tier-routing helper (block/suggest/warn).
+
+### Changed
+
+- `CHANGELOG.md` and `VERSION`: bumped to 0.5.0 per ADR-40 release procedure.
+- Phase docs (phase-0 through phase-12 + README): editorial English wording rewrites
+  (no structural changes).
+
+### Sanitize gate
+
+All content under `docs/harness-engineering/` passes the sanitize gate (0 sensitive
+hits). The one intentional exception is `applications/template-repo/sanitize-glossary.md`
+which contains a mapping table showing what to replace and what with — the pattern
+`/Users/ai_agent/` appears as the left-hand side of a sanitization rule and is
+acceptable in that context.
+
 ## [0.4.0] — 2026-05-25 — Applied-state baseline completion
 
 Raised the public template working tree to an applied-state baseline that

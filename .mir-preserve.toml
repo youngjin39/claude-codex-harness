@@ -1,0 +1,15 @@
+[preserve]
+paths = [
+  "docs/harness-engineering/**",
+  "docs/decisions/**",
+  ".ai-harness/**",
+  "config/**"
+]
+
+[claude_md_preserve]
+sections = [
+  "## Template Purpose",
+  "## Role Policy (Template Profile)",
+  "## Hook Policy Boundary",
+  "## Workflow"
+]
