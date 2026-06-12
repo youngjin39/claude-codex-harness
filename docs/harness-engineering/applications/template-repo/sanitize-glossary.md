@@ -113,7 +113,7 @@ Auto-substitute family-specific terms from your-harness with generic expressions
 | your-harness path | Template generic |
 |---|---|
 | `<your-harness-path>/` | `<your-harness-path>/` |
-| `/Users/ai_agent/` | `~/` or `<user-home>/` |
+| `/Users/<real-username>/` (any literal home path) | `~/` or `<user-home>/` |
 | `<this-repo>` | `<this-repo>` |
 | `~/.claude/` | `~/.claude/` |
 

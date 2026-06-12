@@ -40,10 +40,8 @@ a post-clone setup checklist, and all missing harness components.
 ### Sanitize gate
 
 All content under `docs/harness-engineering/` passes the sanitize gate (0 sensitive
-hits). The one intentional exception is `applications/template-repo/sanitize-glossary.md`
-which contains a mapping table showing what to replace and what with — the pattern
-`/Users/ai_agent/` appears as the left-hand side of a sanitization rule and is
-acceptable in that context.
+hits), including `applications/template-repo/sanitize-glossary.md`, whose mapping
+table uses placeholder forms (e.g. `/Users/<real-username>/`) on both sides.
 
 ## [0.4.0] — 2026-05-25 — Applied-state baseline completion
 
