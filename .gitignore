@@ -45,3 +45,6 @@ out/
 .mir/*.db
 .mir/*.db-shm
 .mir/*.db-wal
+
+# Operator-specific profile — created by setup.sh, filled in by repo owner
+.mir/repo-profile.toml
