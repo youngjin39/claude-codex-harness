@@ -51,9 +51,11 @@ behaving like it did before.
 ## Why dual CLI?
 
 Claude Code and Codex CLI overlap in capability but differ in token budget, scoping, and review
-style. Most non-trivial work benefits from using both: one for control-plane (planning, design,
-judgment) and the other for execution (code writing, TDD, review). This template assumes you will
-run both — and pins the rules so they cannot drift apart.
+style. Most non-trivial work benefits from using both. Whichever CLI you **open** becomes the
+control-plane main (requirements, planning, design, orchestration, judgment); delegated sub-agent
+execution stays Codex-centered (code writing, TDD, review). The two mains share one contract — the
+rules, hooks, memory, and architecture apply identically no matter which CLI you launched. This
+template assumes you will run both — and pins the rules so they cannot drift apart.
 
 The hook events shared by both CLIs — `PreToolUse`, `PostToolUse`, `PreCompact`,
 `SessionStart`, `Stop`, `PermissionRequest` — get the same script. Claude Code's additional
