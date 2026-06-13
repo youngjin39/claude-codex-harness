@@ -173,6 +173,14 @@
       "notes": "Symlinked Codex skill (symlink to .claude/skills/knowledge/SKILL.md)"
     },
     {
+      "source": ".claude/skills/memory-gc/SKILL.md",
+      "targets": [".agents/skills/memory-gc/SKILL.md"],
+      "change_scope": "symlink",
+      "sync_policy": "symlink",
+      "owner": "project-maintainer",
+      "notes": "Symlinked Codex skill (symlink to .claude/skills/memory-gc/SKILL.md)"
+    },
+    {
       "source": ".claude/skills/testing/SKILL.md",
       "targets": [".agents/skills/testing/SKILL.md"],
       "change_scope": "symlink",

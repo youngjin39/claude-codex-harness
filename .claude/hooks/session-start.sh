@@ -201,7 +201,7 @@ echo "Context depth on demand: uv run mir context pull \"<query>\" (--history fo
 # Source: .mir/repo-profile.toml — edit profile and recompile to update this block.
 # Role policy reminder injected into session-start for family: your-harness
 MIR_CODEX_DEFAULT_ENABLED="true"
-echo "[mir] role policy active: claude=control_plane codex=code_tdd_review_plane codex_default=$MIR_CODEX_DEFAULT_ENABLED family=your-harness" >&2
+echo "[mir] role policy active: main_agent_parity=claude_codex delegated_backend=codex_first codex_backend=code_tdd_review_plane codex_default=$MIR_CODEX_DEFAULT_ENABLED family=your-harness" >&2
 if [ -n "${MIR_CODEX_SESSION_ID:-}" ]; then
     echo "[mir] active codex session: $MIR_CODEX_SESSION_ID modes=$MIR_CODEX_ALLOWED_MODES" >&2
 elif [ "$MIR_CODEX_DEFAULT_ENABLED" = "true" ]; then

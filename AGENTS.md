@@ -12,9 +12,47 @@
 - Use generated Codex skills first.
 - If derived files are stale, regenerate from Claude source.
 
-- Skills: `bluebricks, code-review, commit, design, efficiency, governance, knowledge, automation, testing, ui-design, verify`
+- Skills: `bluebricks, code-review, commit, design, efficiency, governance, knowledge, memory-gc, automation, testing, ui-design, verify`
+
+## Main-Agent Orchestration Contract
+- The opened CLI (Claude or Codex) is the control_plane main; Codex main carries the same orchestration contract as Claude main.
+- Full Startup Protocol, Ambiguity Gate, and Task Classification: `.codex/agents/main-orchestrator.toml` (generated mirror of `.claude/agents/main-orchestrator.md`) - adopt it as your session contract.
+- Ambiguity Gate:
+  - Specificity signals: file path, function name, numbered steps, or error message.
+  - 0 specificity signals -> load `design` skill (interview subtype) and resolve ambiguity before execution.
+  - `force:` prefix bypasses the ambiguity gate.
+- Task Classification:
+  - 0 specificity signals -> design interview -> ambiguity gating.
+  - Simple non-code (1-2 steps) -> execute directly -> self-check -> done.
+  - Development-changing request -> design first.
+  - Simple or bounded development -> short harness-structured design -> executor-agent -> codex-final-reviewer -> verify.
+  - Complex, repo-wide, or ambiguous development -> full design-process pipeline.
+  - Complex (3+ steps) -> design -> executor-agent -> codex-final-reviewer -> verify.
+- Treat code, tests, repository structure, phases, ADRs, skills, agents, template sync, fleet rollout/share, policy docs, and generated surfaces as development-changing.
+- When ambiguous, classify upward and keep the refined execution brief in `tasks/plan.md` or a `DispatchBrief`.
+
+## Codex Hook-Mirror Obligations
+- [Codex] `SessionStart`: read startup context manually before acting (`tasks/plan.md`, `tasks/lessons.md`, `docs/memory-map.md`, and required local workflow docs).
+- [Codex] `PreCompact`: before compaction, manually create a handoff document in `tasks/handoffs/` mirroring the PreCompact contract.
+- [Codex] `PostToolUse`: after edits, manually review for debug leftovers and credential leaks.
+- [Codex] `SessionEnd`: at session end, manually create a session snapshot in `tasks/sessions/` mirroring the SessionEnd contract.
+- [Codex] `UserPromptSubmit`: for substantial prompts, run `uv run mir context pull "<query>"` for memory retrieval.
+- [Codex] `TaskCreated` / `TaskCompleted`: keep `tasks/tdd.json` current; TDD ledger closure is enforced at pre-merge by `.claude/hooks/pre-merge-gate.sh`.
 
 # Claude+Codex Harness Template — Opinionated Claude Code Starter
+
+## Template Purpose
+
+**This repo is the canonical harness engineering template.** `git clone` it when starting a new project to get a fully-configured harness structure immediately applicable.
+
+- `docs/harness-engineering/` — complete harness engineering reference (phases 0-14, applications, runbooks). Covers every phase from scratch to fleet-grade operation.
+- `.ai-harness/` — common AI execution rules, session closeout, TDD matrix, deny list, failure patterns, bluebricks.
+- `.claude/hooks/` — session-start (context-core, doc-guard, profile enforcement), pre-tool-use Codex routing, TDD guard, stop audit.
+- `.mir/repo-profile.toml` + `.mir-preserve.toml` + `.mir/boundary.md` — family profile files required by all active repos.
+- `CLAUDE.md` + `AGENTS.md` — replace placeholder family/slug values and update profile block after clone.
+
+**After clone**: (1) set `family=` in `.mir/repo-profile.toml` (setup.sh warns if placeholder remains), (2) replace `your-harness` slug in repo-profile.toml, (3) run `./setup.sh` to register hooks and create task files, (4) run `uv run mir parity check` to verify baseline compliance.
+
 
 ## Required Reads
 - `tasks/plan.md`
@@ -56,6 +94,23 @@
 - `automation` is the default for long-running or restartable work.
 - Delegated, restartable, or 3+ step work should emit a persisted `DispatchBrief` or equivalent handoff artifact before the execution lane starts.
 - Sub-agent contracts must stay pinned by regression tests.
+
+## Continuation Loop Protocol
+- Applies to BOTH mains: whichever CLI is opened, Claude or Codex, follows the same file-backed continuation loop.
+- Cursor of record: `tasks/plan.md` formal `Step N:` lines; do not create a second cursor in `run_state.json`.
+- Each runnable step carries bounded machine refs: `brief=<path>` and `tdd=<change_id>#<category>`.
+- Move 1: read the cursor with `uv run mir loop next --json`.
+- Move 2: select exactly one non-DONE/non-CLOSED step from the first active task section.
+- Move 3: execute ONE bounded step through the delegated Codex lane or `scripts/loop_driver.sh`.
+- Move 4: update `tasks/tdd.json` evidence for that step's declared category.
+- Move 5: rewrite only that cursor line to `DONE`, `FAILED | attempts=K`, or `BLOCKED | reason=...`.
+- Move 6: stop after the one bounded step; the next pass must re-read the file cursor.
+- `FAILED` retries are finite; after the configured attempt cap, mark `BLOCKED` and return control.
+- `BLOCKED` means no fabricated continuation: a main agent or user must revise the plan or brief.
+- `COMPLETE` means all machine steps in the active section are `DONE` or `CLOSED`.
+- Non-LLM automation may drive the loop, but it must not bypass hooks, TDD gates, or verification.
+- `tools/run_orchestrator` remains observer-only; it is not the continuation executor.
+
 
 ## Subagent Resource Management
 - Default live subagent cap = 4. Raise it only when Claude/Codex lanes are clearly independent and the current lane is healthy.
@@ -119,8 +174,9 @@
 |---|---|
 | Repository type | template_transitional |
 | Rollout class | bootstrap_only |
-| Claude role | control_plane |
-| Codex role | code_tdd_review_plane |
+| Main role (whichever CLI is opened) | control_plane |
+| Delegated execution backend | codex_first |
+| Codex backend role | code_tdd_review_plane |
 | Codex default enabled | true |
 | Codex allowed modes | code, review, tdd |
 | Codex blocked modes | none |
@@ -131,7 +187,7 @@
 
 **Delegated sub-agents** are the default execution plane for the repository modes listed under `codex_allowed_modes`. That delegated work may include implementation, code modification, composite TDD execution, deterministic verification, and code review within the profile's review and TDD scope.
 
-**Codex** is the default backend for delegated backend-capable execution work. The repository-level `claude_role=control_plane` / `codex_role=code_tdd_review_plane` fields describe the default backend ownership model, not a different main-agent contract by runtime.
+**Codex** is the default backend for delegated backend-capable execution work. The repository-level `main_role=control_plane` / `delegated_execution=codex_first` / `codex_backend_role=code_tdd_review_plane` fields describe the default backend ownership model, not a different main-agent contract by runtime.
 
 A runtime role swap requires an explicit recorded override in the active plan or handoff note.
 

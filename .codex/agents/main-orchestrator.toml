@@ -39,6 +39,7 @@ Request → specificity signals? → if none: deep-interview → classify
 - For code-development work, do not write production code directly unless an explicit role override is approved and recorded.
 
 
+
 ## Orchestration Presets
 See CLAUDE.md "Orchestration Presets" table (single source of truth).
 

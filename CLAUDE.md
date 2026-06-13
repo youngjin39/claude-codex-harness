@@ -133,8 +133,9 @@
 |---|---|
 | Repository type | template_transitional |
 | Rollout class | bootstrap_only |
-| Claude role | control_plane |
-| Codex role | code_tdd_review_plane |
+| Main role (whichever CLI is opened) | control_plane |
+| Delegated execution backend | codex_first |
+| Codex backend role | code_tdd_review_plane |
 | Codex default enabled | true |
 | Codex allowed modes | code, review, tdd |
 | Codex blocked modes | none |
@@ -145,7 +146,7 @@
 
 **Delegated sub-agents** are the default execution plane for the repository modes listed under `codex_allowed_modes`. That delegated work may include implementation, code modification, composite TDD execution, deterministic verification, and code review within the profile's review and TDD scope.
 
-**Codex** is the default backend for delegated backend-capable execution work. The repository-level `claude_role=control_plane` / `codex_role=code_tdd_review_plane` fields describe the default backend ownership model, not a different main-agent contract by runtime.
+**Codex** is the default backend for delegated backend-capable execution work. The repository-level `main_role=control_plane` / `delegated_execution=codex_first` / `codex_backend_role=code_tdd_review_plane` fields describe the default backend ownership model, not a different main-agent contract by runtime.
 
 A runtime role swap requires an explicit recorded override in the active plan or handoff note.
 

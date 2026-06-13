@@ -1,5 +1,5 @@
 #!/bin/bash
-# BORROWED-FROM: upstream claude-starter reference @ 2026-05-09 scripts/generate_codex_derivatives.sh
+# Derived from the Mir harness reference implementation.
 # Attribution: claude-starter (yojini/claude-starter, Apache-2.0)
 # Modifications:
 #   - Mir-specific manifest path (.codex-sync/manifest.json — same)
@@ -43,7 +43,7 @@ if [ ! -L "$OUTPUT_ROOT/.codex/hooks/lib" ]; then
   ln -s ../../.claude/hooks/lib "$OUTPUT_ROOT/.codex/hooks/lib"
 fi
 
-# Mir core profile has 11 runtime-default skill groups (ADR-15 §S4 consolidation).
+# Mir core profile has 12 runtime-default skill groups (ADR-15 §S4 consolidation).
 # Each group absorbs one or more legacy slugs; legacy SKILL.md files remain
 # dispatchable until P15-I archive moves them under archive/skills/.
 CORE_SKILLS=(
@@ -54,6 +54,7 @@ CORE_SKILLS=(
   efficiency
   governance
   knowledge
+  memory-gc
   automation
   testing
   ui-design
@@ -61,8 +62,8 @@ CORE_SKILLS=(
 )
 
 # Mir full profile is identical to CORE after ADR-15 §S4 consolidation —
-# the 11 groups already absorb every legacy Starter-derived skill (P15-D
-# catalog: 27 Mir-owned → 11 groups, 1:1 mapped).
+# the 12 groups already absorb every legacy Starter-derived skill (P15-D
+# catalog: 27 Mir-owned → 12 groups, 1:1 mapped).
 FULL_SKILLS=(
   bluebricks
   code-review
@@ -71,6 +72,7 @@ FULL_SKILLS=(
   efficiency
   governance
   knowledge
+  memory-gc
   automation
   testing
   ui-design
@@ -259,6 +261,7 @@ emit_agent_sections_for_codex() {
         "## Startup Protocol"
         "## Ambiguity Gate"
         "## Task Classification"
+        "## Task-Weight Model Routing (ADR-49, advisory)"
         "## Orchestration Presets"
         "## Simple Tasks (direct execution)"
         "## Complex Tasks (pipeline)"
@@ -405,6 +408,55 @@ write_agents_md() {
       echo "- If derived files are stale, regenerate from Claude source."
       echo
       echo "- Skills: \`$skill_list\`"
+      echo
+      cat <<'EOF'
+## Main-Agent Orchestration Contract
+- The opened CLI (Claude or Codex) is the control_plane main; Codex main carries the same orchestration contract as Claude main.
+- Full Startup Protocol, Ambiguity Gate, and Task Classification: `.codex/agents/main-orchestrator.toml` (generated mirror of `.claude/agents/main-orchestrator.md`) - adopt it as your session contract.
+- Ambiguity Gate:
+  - Specificity signals: file path, function name, numbered steps, or error message.
+  - 0 specificity signals -> load `design` skill (interview subtype) and resolve ambiguity before execution.
+  - `force:` prefix bypasses the ambiguity gate.
+- Task Classification:
+  - 0 specificity signals -> design interview -> ambiguity gating.
+  - Simple non-code (1-2 steps) -> execute directly -> self-check -> done.
+  - Development-changing request -> design first.
+  - Simple or bounded development -> short harness-structured design -> executor-agent -> codex-final-reviewer -> verify.
+  - Complex, repo-wide, or ambiguous development -> full design-process pipeline.
+  - Complex (3+ steps) -> design -> executor-agent -> codex-final-reviewer -> verify.
+- Treat code, tests, repository structure, phases, ADRs, skills, agents, template sync, fleet rollout/share, policy docs, and generated surfaces as development-changing.
+- When ambiguous, classify upward and keep the refined execution brief in `tasks/plan.md` or a `DispatchBrief`.
+
+## Codex Hook-Mirror Obligations
+- [Codex] `SessionStart`: read startup context manually before acting (`tasks/plan.md`, `tasks/lessons.md`, `docs/memory-map.md`, and required local workflow docs).
+- [Codex] `PreCompact`: before compaction, manually create a handoff document in `tasks/handoffs/` mirroring the PreCompact contract.
+- [Codex] `PostToolUse`: after edits, manually review for debug leftovers and credential leaks.
+- [Codex] `SessionEnd`: at session end, manually create a session snapshot in `tasks/sessions/` mirroring the SessionEnd contract.
+- [Codex] `UserPromptSubmit`: for substantial prompts, run `uv run mir context pull "<query>"` for memory retrieval.
+- [Codex] `TaskCreated` / `TaskCompleted`: keep `tasks/tdd.json` current; TDD ledger closure is enforced at pre-merge by `.claude/hooks/pre-merge-gate.sh`.
+EOF
+      # DEDUP GUARD: only inject if CLAUDE.md does NOT already contain the section.
+      # (mir-self CLAUDE.md has it and it arrives via body_without_frontmatter below.)
+      if ! grep -q '## Continuation Loop Protocol' CLAUDE.md 2>/dev/null; then
+        echo
+        cat <<'LOOP_EOF'
+## Continuation Loop Protocol
+- Applies to BOTH mains: whichever CLI is opened, Claude or Codex, follows the same file-backed continuation loop.
+- Cursor of record: `tasks/plan.md` formal `Step N:` lines; do not create a second cursor in `run_state.json`.
+- Each runnable step carries bounded machine refs: `brief=<path>` and `tdd=<change_id>#<category>`.
+- Move 1: read the cursor with `uv run mir loop next --json`.
+- Move 2: select exactly one non-DONE/non-CLOSED step from the first active task section.
+- Move 3: execute ONE bounded step through the delegated Codex lane or `scripts/loop_driver.sh`.
+- Move 4: update `tasks/tdd.json` evidence for that step's declared category.
+- Move 5: rewrite only that cursor line to `DONE`, `FAILED | attempts=K`, or `BLOCKED | reason=...`.
+- Move 6: stop after the one bounded step; the next pass must re-read the file cursor.
+- `FAILED` retries are finite; after the configured attempt cap, mark `BLOCKED` and return control.
+- `BLOCKED` means no fabricated continuation: a main agent or user must revise the plan or brief.
+- `COMPLETE` means all machine steps in the active section are `DONE` or `CLOSED`.
+- Non-LLM automation may drive the loop, but it must not bypass hooks, TDD gates, or verification.
+- `tools/run_orchestrator` remains observer-only; it is not the continuation executor.
+LOOP_EOF
+      fi
       echo
       body_without_frontmatter CLAUDE.md
     } > "$OUTPUT_ROOT/AGENTS.md"
