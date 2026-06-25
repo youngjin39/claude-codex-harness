@@ -1,10 +1,40 @@
 #!/bin/bash
 # Pre-commit verification helper: run project verification only for code changes.
+#
+# Tier declarations per ADR-33 / R27-T02 (Choice 5=A):
+#   pre-commit/lint     : tier=block    (code quality gate)
+#   pre-commit/typecheck: tier=block    (code quality gate)
+#   pre-commit/test     : tier=suggest  (large tests — bypass via MIR_SUGGEST_TIER_CONFIRM=1)
+_MIR_HOOK_TIER_LINT="block"
+_MIR_HOOK_TIER_TYPECHECK="block"
+_MIR_HOOK_TIER_TEST="suggest"
+_MIR_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
+_MIR_TIER_DISPATCH="$(dirname "$0")/_lib/tier_dispatch.sh"
+# shellcheck source=./_lib/tier_dispatch.sh
+[ -f "$_MIR_TIER_DISPATCH" ] && . "$_MIR_TIER_DISPATCH"
 
 set -u
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 TDD_MATRIX_GUARD_SCRIPT="$PROJECT_DIR/.claude/hooks/tdd-matrix-guard.py"
+
+# ADR-51 D2/S4d: the per-repo tools/ commit-gate posture comes from the harness-consistency
+# manifest (repo.enforcement.tools_commit_gate: deferred|lint_test|lint_test_ledger). This
+# replaces the binary "fleet catalog present" signal, which is kept only as a fallback for
+# repos that do not yet ship the manifest.
+_MIR_FLEET_MANAGER=no
+[ -f "$PROJECT_DIR/config/repo-agent-management.json" ] && _MIR_FLEET_MANAGER=yes
+_MIR_TOOLS_COMMIT_GATE=""
+_MIR_HC_MANIFEST="$PROJECT_DIR/config/harness-consistency.json"
+if [ -f "$_MIR_HC_MANIFEST" ]; then
+  _MIR_TOOLS_COMMIT_GATE="$(python3 -c "
+import json, sys
+try:
+    print(json.load(open(sys.argv[1]))['repo']['enforcement']['tools_commit_gate'])
+except Exception:
+    pass
+" "$_MIR_HC_MANIFEST" 2>/dev/null)"
+fi
 
 collect_changed_files() {
   git diff --cached --name-only --diff-filter=ACMR 2>/dev/null | awk 'NF { print }' | sort -u
@@ -14,6 +44,19 @@ is_code_path() {
   local path="$1"
   case "$path" in
     src/*|tests/*|app/*|lib/*)
+      ;;
+    tools/*)
+      # ADR-51 D2/S4d: tools/ commit-gate posture is per-repo, read from the manifest's
+      # repo.enforcement.tools_commit_gate. deferred -> not gated (mir-self exemption: keyed
+      # composite-TDD + design->Codex->review instead of the changes[] gate); lint_test or
+      # lint_test_ledger -> gated (managed fleet — commits stay possible; the per-file
+      # TDD-ledger gate is NOT expanded here). Falls back to the legacy "fleet catalog present
+      # => deferred" signal when the repo ships no harness-consistency manifest.
+      if [ -n "$_MIR_TOOLS_COMMIT_GATE" ]; then
+        [ "$_MIR_TOOLS_COMMIT_GATE" = "deferred" ] && return 1
+      else
+        [ "$_MIR_FLEET_MANAGER" = "yes" ] && return 1
+      fi
       ;;
     *)
       return 1
@@ -141,8 +184,15 @@ main() {
   # unrelated commits in repos with whitespace in their path are not blocked.
   local known_flake_deselect
   known_flake_deselect="--deselect tests/test_mir_mcp_server_live.py::test_live_round_trip_status_call"
+  # ADR-56 known pre-existing baseline — see docs/decisions/pre-commit-baseline-deselect-2026-06-13.md
+  # RESOLVED 2026-06-13: all 6 baseline tests fixed (corpus archive hygiene; native-memory
+  # capture-native command + live capture; template verifier per-phase granularity + sanitize
+  # allowlist + ADR-56 template stub). Baseline is now EMPTY — list only ever shrinks; any new
+  # entry requires an ADR/decision record.
+  local pre_existing_baseline_deselect
+  pre_existing_baseline_deselect=""
   if [ -n "$changed_py_under_src" ]; then
-    default_test="uv run pytest -q $known_flake_deselect"
+    default_test="uv run pytest -q $known_flake_deselect $pre_existing_baseline_deselect"
   elif [ -n "$changed_test_paths" ]; then
     default_test="uv run pytest -q $changed_test_paths"
   else
@@ -160,9 +210,19 @@ main() {
     run_step "tdd[$idx]" "$tdd_cmd" || exit 2
     idx=$((idx + 1))
   done <"$tdd_commands_file"
-  run_step "lint" "$lint_cmd" || exit 2
-  run_step "typecheck" "$typecheck_cmd" || exit 2
-  run_step "test" "$test_cmd" || exit 2
+  # tier: block for lint+typecheck; tier: suggest for test
+  run_step "lint" "$lint_cmd" || exit 2          # tier: block
+  run_step "typecheck" "$typecheck_cmd" || exit 2 # tier: block
+  if ! run_step "test" "$test_cmd"; then
+    # tier: suggest — bypass allowed via MIR_SUGGEST_TIER_CONFIRM=1
+    if [ "${MIR_SUGGEST_TIER_CONFIRM:-0}" = "1" ]; then
+      _mir_record_suggest_bypass "pre-commit/test" "test step failed; bypassed by MIR_SUGGEST_TIER_CONFIRM=1"
+      echo "[hook SUGGEST bypass] pre-commit/test: test failed but MIR_SUGGEST_TIER_CONFIRM=1 set" >&2
+    else
+      echo "[hook SUGGEST block] pre-commit/test: test failed (set MIR_SUGGEST_TIER_CONFIRM=1 to bypass)" >&2
+      exit 2
+    fi
+  fi
   run_step "build" "$build_cmd" || exit 2
   exit 0
 }

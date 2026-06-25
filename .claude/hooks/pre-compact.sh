@@ -7,6 +7,7 @@ HANDOFF_DIR="$PROJECT_DIR/tasks/handoffs"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 HANDOFF_FILE="$HANDOFF_DIR/auto-${TIMESTAMP}.md"
 LATEST_RUNNER=$(find "$PROJECT_DIR/tasks/runner" -name "*.md" -type f 2>/dev/null | sort -r | head -1)
+LATEST_DISPATCH_BRIEF=$(find "$PROJECT_DIR/tasks/dispatch" -name "*.json" -type f 2>/dev/null | sort -r | head -1)
 
 mkdir -p "$HANDOFF_DIR" || { echo "[PreCompact] ERROR: Cannot create $HANDOFF_DIR"; exit 0; }
 
@@ -34,6 +35,25 @@ mkdir -p "$HANDOFF_DIR" || { echo "[PreCompact] ERROR: Cannot create $HANDOFF_DI
     echo "- No runner ledger found."
   fi
   echo ""
+  echo "## Dispatch Brief"
+  if [ -n "$LATEST_DISPATCH_BRIEF" ] && [ -f "$LATEST_DISPATCH_BRIEF" ]; then
+    echo "- Brief: $LATEST_DISPATCH_BRIEF"
+    python3 - "$LATEST_DISPATCH_BRIEF" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+print(f"- task_id: `{data.get('task_id', 'unknown')}`")
+print(f"- slice_id: `{data.get('slice_id', 'unknown')}`")
+print(f"- target_agent: `{data.get('target_agent', 'unknown')}`")
+print(f"- resume_state_ref: `{data.get('resume_state_ref', 'unknown')}`")
+PY
+  else
+    echo "- No dispatch brief found."
+  fi
+  echo ""
   echo "## TODO (fill before compact)"
   echo "- Decisions:"
   echo "- Rejected alternatives:"
@@ -41,6 +61,7 @@ mkdir -p "$HANDOFF_DIR" || { echo "[PreCompact] ERROR: Cannot create $HANDOFF_DI
   echo "- Next actions:"
   echo "- Key files modified:"
   echo "- Runner ledger path:"
+  echo "- Dispatch brief path:"
   echo "- Runner health / next inspection:"
 } > "$HANDOFF_FILE"
 

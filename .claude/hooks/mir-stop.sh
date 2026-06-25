@@ -92,7 +92,7 @@ if [ "${MIR_REVIEW_GATE:-0}" = "1" ]; then
         --change-id "auto-review-${_REVIEW_TS}-${_LAST_MSG_HASH}" \
         --category review \
         --codex-args "exec --review" \
-        --family mir-harness \
+        --family your-harness \
         2>/dev/null || true
 fi
 

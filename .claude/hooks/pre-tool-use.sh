@@ -2,8 +2,25 @@
 # PreToolUse hook: input-stage guardrail.
 # Blocks destructive patterns + denied paths BEFORE the tool runs.
 # Reads tool_input from stdin (JSON). Exit 2 = block; exit 0 = allow.
+#
+# Tier declarations per ADR-33 / R27-T02 (Choice 5=A):
+#   pre-tool-use/code-path-block  : tier=block  (your-harness BLOCK code path protection)
+#   pre-tool-use/deny-list        : tier=block  (security)
+#   pre-tool-use/tool-contract-log: tier=warn   (MIR_TOOL_CONTRACT_LOG advisory)
+_MIR_HOOK_TIER_CODE_PATH="block"
+_MIR_HOOK_TIER_DENY_LIST="block"
+_MIR_HOOK_TIER_TOOL_CONTRACT_LOG="warn"
+_MIR_TIER_DISPATCH="$(dirname "$0")/_lib/tier_dispatch.sh"
+# shellcheck source=./_lib/tier_dispatch.sh
+[ -f "$_MIR_TIER_DISPATCH" ] && . "$_MIR_TIER_DISPATCH"
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
+_MIR_INVOCATION_LOG_HELPER="$(dirname "$0")/_lib/invocation_log.sh"
+# shellcheck source=./_lib/invocation_log.sh
+[ -f "$_MIR_INVOCATION_LOG_HELPER" ] && . "$_MIR_INVOCATION_LOG_HELPER"
+if command -v mir_invocation_log_enable >/dev/null 2>&1; then
+  mir_invocation_log_enable "pre-tool-use" "$PROJECT_DIR"
+fi
 DENY_LIST_FILE="$PROJECT_DIR/.ai-harness/deny-list.yaml"
 TDD_GUARD_SCRIPT="$PROJECT_DIR/.claude/hooks/tdd-guard.sh"
 PRE_COMMIT_VERIFICATION_SCRIPT="$PROJECT_DIR/.claude/hooks/pre-commit-verification.sh"
@@ -85,7 +102,17 @@ apply_deny_list() {
     regex="${regex//\\\\/\\}"
     if printf '%s' "$subject" | grep -qE "$regex"; then
       if [ "$severity" = "block" ]; then
+        # tier: block (deny-list security enforcement)
         block "deny-list[$id] $target_label: $reason"
+      fi
+      if [ "$severity" = "suggest" ]; then
+        if command -v emit_tier_result >/dev/null 2>&1; then
+          emit_tier_result "pre-tool-use/deny-list[$id]" "suggest" "deny-list[$id] $target_label: $reason"
+          local suggest_rc=$?
+          [ "$suggest_rc" -ne 0 ] && exit "$suggest_rc"
+        else
+          block "deny-list[$id] $target_label: $reason"
+        fi
       fi
       if [ "$severity" = "warn" ]; then
         warn "deny-list[$id] $target_label: $reason"
@@ -96,6 +123,29 @@ apply_deny_list() {
 
 require_jq
 TOOL_NAME="$(extract_json '.tool_name')" || block "Malformed PreToolUse payload for filter: .tool_name"
+
+# ADR-60 R5 (Phase-3 enforcement parity): the Write/Edit R5 block below only
+# covers Write/Edit. Codex's primary edit tool is apply_patch, and Bash can
+# redirect, so extend the tasks/plan.md hard-block to those when a sub-agent /
+# codex-delegated context (MIR_CODEX_SESSION_ID set) is active. Runtime-agnostic:
+# protects whether Claude or Codex is the main and delegates (incl. loop_driver,
+# which runs Codex in the main worktree where R4 isolation does not apply).
+if [ -n "${MIR_CODEX_SESSION_ID:-}" ]; then
+  case "$TOOL_NAME" in
+    apply_patch|ApplyPatch)
+      _r5_patch="$(extract_json '.tool_input.input // .tool_input.patch // .tool_input.content // .tool_input' 2>/dev/null || echo "")"
+      if printf '%s' "$_r5_patch" | grep -qE '(^|[^[:alnum:]_./-])tasks/plan\.md([^[:alnum:]_]|$)'; then
+        block "ADR-60 R5: a sub-agent/codex context must not edit the main control-plane cursor tasks/plan.md via apply_patch — the control_plane main owns it (report your result via your final message + the JobRegistry, never plan.md)"
+      fi
+      ;;
+    Bash)
+      _r5_cmd="$(extract_json '.tool_input.command' 2>/dev/null || echo "")"
+      if printf '%s' "$_r5_cmd" | grep -qE 'tasks/plan\.md' && printf '%s' "$_r5_cmd" | grep -qE '(>>?|[[:space:]]tee([[:space:]]|$)|sed[[:space:]]+-i|[[:space:]]truncate([[:space:]]|$)|[[:space:]]dd([[:space:]]|$)|[[:space:]]cp([[:space:]]|$)|[[:space:]]mv([[:space:]]|$))'; then
+        block "ADR-60 R5: a sub-agent/codex context must not write the main control-plane cursor tasks/plan.md via Bash — the control_plane main owns it (report your result via your final message + the JobRegistry, never plan.md)"
+      fi
+      ;;
+  esac
+fi
 
 # --- Bash command guards ---
 if [ "$TOOL_NAME" = "Bash" ]; then
@@ -126,11 +176,24 @@ if [ "$TOOL_NAME" = "Bash" ]; then
   if echo "$CMD" | grep -qE '(^|[[:space:]])sudo([[:space:]]|$)'; then
     block "sudo requires user confirmation, not this hook: $CMD"
   fi
+  # 7. codex exec without stdin redirect hangs on EOF wait (silent stall; force-kill still exits 0).
+  #    Safe forms: '< /dev/null', a heredoc/herestring (<<), or a pipe feeding codex exec.
+  if echo "$CMD" | grep -qE 'codex[[:space:]]+exec'; then
+    if ! echo "$CMD" | grep -qE '<[[:space:]]*/dev/null|<<|\|[^|]*codex[[:space:]]+exec'; then
+      block "codex exec without stdin redirect hangs on EOF wait — append '< /dev/null'"
+    fi
+  fi
   if echo "$CMD" | grep -qE '(^|[[:space:]])git[[:space:]]+commit([[:space:]]|$)'; then
     if [ -f "$PRE_COMMIT_VERIFICATION_SCRIPT" ]; then
       if ! /bin/bash "$PRE_COMMIT_VERIFICATION_SCRIPT"; then
         block "pre-commit verification failed for code changes"
       fi
+    fi
+  fi
+  # F9. Sealed-family external push guard (sealed-repo policy 2026-05-23)
+  if echo "$CMD" | grep -qE 'git[[:space:]]+push'; then
+    if echo "$CMD" | grep -qE '(<your-home>/Router_Control|<your-home>/Project|<your-harness-path>'; then
+      block "sealed-family external push requires explicit user override (sealed-repo policy 2026-05-23)"
     fi
   fi
   # F6-hook. Codex exec stdin guard (advisory — open stdin hangs on EOF)
@@ -161,25 +224,59 @@ if [ "$TOOL_NAME" = "Write" ] || [ "$TOOL_NAME" = "Edit" ]; then
   if echo "$FP" | grep -qE '(^|/)\.git/(config|hooks/|refs/|objects/)'; then
     block "Write to git internal state: $FP"
   fi
+  # ADR-60 R5: a sub-agent / codex-delegated context must NOT write the MAIN control-plane
+  # cursor tasks/plan.md (the control_plane main owns it). Defense-in-depth behind the R4
+  # worktree isolation. Detect the delegated context via MIR_CODEX_SESSION_ID (set by
+  # scripts/spawn_codex_session.sh). The main (MIR_CODEX_SESSION_ID unset) is allowed.
+  if [ -n "${MIR_CODEX_SESSION_ID:-}" ]; then
+    case "$FP" in
+      tasks/plan.md|*/tasks/plan.md)
+        block "ADR-60 R5: a sub-agent/codex context must not edit the main control-plane cursor tasks/plan.md — the control_plane main owns it (report your result via your final message + the JobRegistry, never plan.md)"
+        ;;
+    esac
+  fi
   if [ -f "$TDD_GUARD_SCRIPT" ]; then
     if ! /bin/bash "$TDD_GUARD_SCRIPT" "$FP"; then
-      exit 2
-    fi
-  fi
-  # ADR-33 design-complete gate (R11-T10)
-  DESIGN_GATE_SCRIPT="$PROJECT_DIR/.claude/hooks/design-complete-gate.sh"
-  if [ -f "$DESIGN_GATE_SCRIPT" ]; then
-    if ! /bin/bash "$DESIGN_GATE_SCRIPT" "$FP" "$TOOL_NAME"; then
       exit 2
     fi
   fi
   apply_deny_list "$TOOL_NAME $FP" "path"
 fi
 
+# mir:bluebrick-advisory:begin
+# Advisory: emit one stderr line when a Write/Edit/Bash-write targets a bluebrick-owned path.
+# Never blocks (exit 0 always). Config lives in config/bluebrick-paths.json.
+_MIR_BB_CONFIG="$PROJECT_DIR/config/bluebrick-paths.json"
+if [ -f "$_MIR_BB_CONFIG" ] && ([ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]); then
+  _bb_fp="$(extract_json '.tool_input.file_path // .tool_input.path' 2>/dev/null || echo "")"
+  if [ -n "$_bb_fp" ]; then
+    _bb_match="$(python3 - "$_bb_fp" "$_MIR_BB_CONFIG" <<'BBPY'
+import sys, json, os
+fp, cfg_path = sys.argv[1], sys.argv[2]
+try:
+    mapping = json.load(open(cfg_path))
+except Exception:
+    sys.exit(0)
+pwd = os.environ.get("PWD", "")
+candidates = [fp]
+if pwd and fp.startswith(pwd + "/"):
+    candidates.append(fp[len(pwd)+1:])
+for prefix, brick in mapping.items():
+    for c in candidates:
+        if c == prefix or c.startswith(prefix):
+            print(f"{brick}")
+            sys.exit(0)
+BBPY
+)"
+    [ -n "$_bb_match" ] && warn "[bluebrick] read docs/bluebricks/$_bb_match.md before changing $_bb_fp"
+  fi
+fi
+# mir:bluebrick-advisory:end
+
 # mir:profile:enforcement:begin
-# --- Mir profile-driven enforcement (V2.2 — phase-2 scope + ADR-23 dogfooding exemption) ---
+# --- your-harness profile-driven enforcement (V2.2 — phase-2 scope + ADR-23 dogfooding exemption) ---
 if [ "${MIR_FAMILY_CODE_PATHS_INITIALIZED:-no}" != "yes" ]; then
-    MIR_FAMILY_SLUG="${MIR_FAMILY_SLUG:-mir-harness}"
+    MIR_FAMILY_SLUG="${MIR_FAMILY_SLUG:-your-harness}"
     MIR_FAMILY_CODE_PATHS=()
     _MIR_CODE_PATH_HELPER="$PROJECT_DIR/.claude/hooks/lib/code-path-config.py"
     if [ -f "$_MIR_CODE_PATH_HELPER" ]; then
@@ -230,44 +327,77 @@ PY
             if [ "${MIR_DOGFOODING_EXEMPT:-no}" = "yes" ]; then
                 echo "[mir ADVISORY] code-path edit on $_mir_file_path; family $MIR_FAMILY_SLUG is ADR-23 dogfooding exempt (no BLOCK)" >&2
             else
-                echo "[mir BLOCKED] code-path edit on $_mir_file_path requires the Codex execution lane. If Claude is main, delegate via scripts/spawn_codex_session.sh; if Codex is main or the loop driver is running, export MIR_CODEX_MAIN=1." >&2
+                # tier: block (code-path protection — MIR_HOOK_TIER_CODE_PATH=block)
+                echo "[mir BLOCKED] code-path edit on $_mir_file_path requires the delegated Codex execution lane (ADR-60 §16 D1/D5): route delegated/sub-agent code writes through 'mir_executor execute --background --dispatch' (R4 worktree), regardless of which CLI is main. export MIR_CODEX_MAIN=1 is the escape ONLY for the MAIN ITSELF (e.g. the loop driver) writing the main tree — not for delegated work." >&2
                 exit 2
             fi
         fi
     fi
 fi
-# --- end Mir profile-driven enforcement (V2.2) ---
+# --- end your-harness profile-driven enforcement (V2.2) ---
 
 # mir:profile:enforcement:end
 
-# mir:bluebrick-advisory:begin
-# Advisory: emit one stderr line when a Write/Edit/Bash-write targets a bluebrick-owned path.
-# Never blocks (exit 0 always). Config lives in config/bluebrick-paths.json.
-_MIR_BB_CONFIG="$PROJECT_DIR/config/bluebrick-paths.json"
-if [ -f "$_MIR_BB_CONFIG" ] && ([ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]); then
-  _bb_fp="$(extract_json '.tool_input.file_path // .tool_input.path' 2>/dev/null || echo "")"
-  if [ -n "$_bb_fp" ]; then
-    _bb_match="$(python3 - "$_bb_fp" "$_MIR_BB_CONFIG" <<'BBPY'
-import sys, json, os
-fp, cfg_path = sys.argv[1], sys.argv[2]
+# mir:enabled-phases:begin
+# --- R25-T06: enabled_phases advisory check (gated by MIR_ENABLED_PHASES_CHECK=1) ---
+if [ "${MIR_ENABLED_PHASES_CHECK:-0}" = "1" ]; then
+    _MIR_EP_FAMILY="${MIR_FAMILY_SLUG:-your-harness}"
+    _MIR_EP_PHASE="${MIR_ACTIVE_PHASE:-}"
+    _MIR_EP_CONFIG="$PROJECT_DIR/config/repos/${_MIR_EP_FAMILY}.json"
+    if [ -n "$_MIR_EP_PHASE" ] && [ -f "$_MIR_EP_CONFIG" ]; then
+        _MIR_EP_ALLOWED="$(python3 -c "
+import json, sys
 try:
-    mapping = json.load(open(cfg_path))
+    d = json.load(open('$_MIR_EP_CONFIG'))
+    phases = [e['phase'] for e in d.get('enabled_phases', [])]
+    print('yes' if int('$_MIR_EP_PHASE') in phases else 'no')
 except Exception:
-    sys.exit(0)
-pwd = os.environ.get("PWD", "")
-candidates = [fp]
-if pwd and fp.startswith(pwd + "/"):
-    candidates.append(fp[len(pwd)+1:])
-for prefix, brick in mapping.items():
-    for c in candidates:
-        if c == prefix or c.startswith(prefix):
-            print(f"{brick}")
-            sys.exit(0)
-BBPY
-)"
-    [ -n "$_bb_match" ] && warn "[bluebrick] read docs/bluebricks/$_bb_match.md before changing $_bb_fp"
-  fi
+    print('yes')
+" 2>/dev/null || echo "yes")"
+        if [ "$_MIR_EP_ALLOWED" = "no" ]; then
+            warn "phase ${_MIR_EP_PHASE} is not in enabled_phases for family ${_MIR_EP_FAMILY} (advisory only)"
+        fi
+    fi
 fi
-# mir:bluebrick-advisory:end
+# --- end R25-T06 enabled_phases advisory check ---
+# mir:enabled-phases:end
+
+# mir:tool-contract:begin
+# --- R20-T01: phase-4 §4 tool contract validation (gated by env) ---
+# Resolve project-venv python (requires 3.11+ for StrEnum); fall back to python3
+_MIR_TC_PYTHON="$PROJECT_DIR/.venv/bin/python3"
+if [ ! -x "$_MIR_TC_PYTHON" ]; then
+    _MIR_TC_PYTHON="python3"
+fi
+if [ "${MIR_TOOL_CONTRACT_REQUIRED:-0}" = "1" ]; then
+    _MIR_TC_VALIDATOR="$PROJECT_DIR/tools/hooks/validate_tool_contract.py"
+    if [ -f "$_MIR_TC_VALIDATOR" ]; then
+        # Replay INPUT through stdin to the validator
+        _mir_tc_result="$(printf '%s' "${INPUT:-}" | "$_MIR_TC_PYTHON" "$_MIR_TC_VALIDATOR" 2>&1)"
+        _mir_tc_exit=$?
+        if [ "$_mir_tc_exit" -ne 0 ]; then
+            echo "$_mir_tc_result" >&2
+            echo "[mir CONTRACT BLOCK] tool contract validation failed (exit $_mir_tc_exit). Set MIR_TOOL_CONTRACT_REQUIRED=0 to disable temporarily." >&2
+            exit 2
+        fi
+    else
+        echo "[mir TC ADVISORY] MIR_TOOL_CONTRACT_REQUIRED=1 but validator missing at $_MIR_TC_VALIDATOR — skipping" >&2
+    fi
+elif [ "${MIR_TOOL_CONTRACT_LOG:-0}" = "1" ]; then
+    # Advisory log mode — record contract presence without enforcing
+    _mir_tc_has_contract="$(printf '%s' "${INPUT:-}" | "$_MIR_TC_PYTHON" -c 'import sys,json
+try:
+    d = json.loads(sys.stdin.read())
+    tin = d.get("tool_input", {})
+    print("yes" if "_mir_contract" in tin else "no")
+except Exception:
+    print("err")' 2>/dev/null || echo "err")"
+    if [ "$_mir_tc_has_contract" = "no" ]; then
+        # tier: warn (MIR_TOOL_CONTRACT_LOG advisory — MIR_HOOK_TIER_TOOL_CONTRACT_LOG=warn)
+        echo "[mir TC ADVISORY LOG] tool call missing _mir_contract (advisory only, not enforced)" >&2
+    fi
+fi
+# --- end R20-T01 tool contract validation ---
+# mir:tool-contract:end
 
 exit 0

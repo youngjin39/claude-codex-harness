@@ -46,6 +46,35 @@ mkdir -p "$SESSIONS_DIR" || { echo "[SessionEnd] ERROR: Cannot create $SESSIONS_
   echo "- Memory Harvest: (new insights to save to docs/)"
 } > "$SNAPSHOT_FILE"
 
+# ADR-55: native-memory reconcile→render (no-op if MIR_NATIVE_MEMORY_HOME unset)
+if [ -n "${MIR_NATIVE_MEMORY_HOME:-}" ] && [ -d "$MIR_NATIVE_MEMORY_HOME" ]; then
+  if cd "$PROJECT_DIR" && uv run python -c "from mir.core.engine.memory import distill" 2>/dev/null; then
+    _NM_DB="$PROJECT_DIR/.mir/memory.db"
+    _NM_TAX="$PROJECT_DIR/config/native-memory-taxonomy.json"
+    if [ -f "$_NM_DB" ] && [ -f "$_NM_TAX" ]; then
+      cd "$PROJECT_DIR" && uv run python - <<'PYEOF' 2>/dev/null || true
+import os, sys, pathlib
+project = pathlib.Path(os.environ["CLAUDE_PROJECT_DIR"])
+home = pathlib.Path(os.environ["MIR_NATIVE_MEMORY_HOME"])
+from mir.core.engine.memory import distill, store
+conn_obj = store.connect(project / ".mir" / "memory.db", load_vec=False)
+conn = conn_obj.conn
+try:
+    summary = distill.session_end_reconcile_and_render(
+        conn,
+        source_dir=home,
+        output_dir=home,
+        taxonomy_path=project / "config" / "native-memory-taxonomy.json",
+    )
+    conn.commit()
+    print(f"[ADR-55] native-memory: ingested={summary.ingested_count} tombstoned={summary.tombstoned_count} quarantine={summary.quarantine_count}")
+finally:
+    conn.close()
+PYEOF
+    fi
+  fi
+fi
+
 echo "[SessionEnd] Session snapshot saved: $SNAPSHOT_FILE"
 echo ""
 echo "Before exiting, complete these steps:"

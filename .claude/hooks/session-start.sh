@@ -1,15 +1,18 @@
 #!/bin/bash
+_MIR_HOOK_TIER="warn"
+_mir_session_body() {
 # SessionStart hook: inject startup context into the session
 # stdout → Claude's context window
-# tier: warn — info only, never blocks (R27-T02 / Choice 5=A)
-# ADR-53 D1: current-only core — upfront context + plan head + lessons head.
-#   Dropped: memory-map.md sed tail, latest-session, latest-runner slices.
-#   Byte-guard: total stdout capped at 10240 bytes.
-_MIR_HOOK_TIER="warn"
+# ADR-53 D1: current-only core — upfront context + plan head + intent.json + lessons head.
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 
-# Auto-archive DONE/CLOSED plan.md sections before loading (silent)
+# Auto-archive DONE/CLOSED plan.md sections before loading (silent).
+# Skip in a delegated/sub-agent (codex) session: tasks/plan.md is the control-plane
+# main's cursor (ADR-60 R5) and a dispatch worktree's session-start must not mutate it,
+# else the archive edit contaminates the dispatch merge changeset -> denied-harness gate
+# block (observed 2026-06-25: a worktree session-start archived plan.md, blocking the merge).
+if [ -z "${MIR_CODEX_SESSION_ID:-}" ]; then
 python3 - "$PROJECT_DIR" 2>/dev/null <<'PYEOF' || true
 import re, sys, datetime
 from pathlib import Path
@@ -52,102 +55,53 @@ plan_text = "".join(preamble) + "".join(f"## {h}\n{''.join(b)}" for h, b in keep
 plan_p.write_text(plan_text, "utf-8")
 print(f"[plan-archive] archived {len(arch)} section(s)")
 PYEOF
+fi
 
-# Accumulate output in a variable; truncate to 10240 bytes before writing.
-_OUT=""
-
-_OUT+="=== SESSION CONTEXT ===
-"
+echo "=== SESSION CONTEXT ==="
 
 if [ -f "$PROJECT_DIR/scripts/build_session_upfront_context.py" ]; then
   _UPFRONT=$(python3 "$PROJECT_DIR/scripts/build_session_upfront_context.py" "$PROJECT_DIR" 2>/dev/null)
-  _OUT+="=== UPFRONT CONTEXT ===
-${_UPFRONT}
-=== END UPFRONT CONTEXT ===
-
-"
+  _INTENT_CONFLICT_ADVISORY=$(printf '%s\n' "$_UPFRONT" | sed -n 's/^intent_conflict_advisory: //p' | head -n 1)
+  echo "=== UPFRONT CONTEXT ==="
+  echo "$_UPFRONT"
+  echo "=== END UPFRONT CONTEXT ==="
+  echo ""
 fi
 
 if [ -f "$PROJECT_DIR/tasks/plan.md" ]; then
-  _OUT+="--- plan.md ---
-"
-  _OUT+="$(head -c 1200 "$PROJECT_DIR/tasks/plan.md")
-"
-fi
-
-_OUT+="
-"
-
-_DB_PATH="$PROJECT_DIR/.mir/memory.db"
-if [ -f "$_DB_PATH" ]; then
-  _LESSONS=$(python3 - "$_DB_PATH" 2>/dev/null <<'PYEOF'
-import sys, sqlite3
-db_path = sys.argv[1]
-try:
-    conn = sqlite3.connect(db_path)
-    rows = conn.execute(
-        """
-        SELECT e.slug, f.object_literal
-          FROM facts f
-          JOIN entities e ON e.id = f.subject_entity_id
-         WHERE f.predicate = 'lesson'
-           AND f.status    = 'active'
-         ORDER BY f.id DESC
-         LIMIT 15
-        """
-    ).fetchall()
-    conn.close()
-    for slug, text in rows:
-        print(f"- **{slug}**: {text}")
-except Exception:
-    sys.exit(1)
-PYEOF
-)
-  _DB_EXIT=$?
-  if [ "$_DB_EXIT" -eq 0 ] && [ -n "$_LESSONS" ]; then
-    _OUT+="--- lessons (DB-live, active only) ---
-${_LESSONS}
-"
-  elif [ -f "$PROJECT_DIR/tasks/lessons.md" ]; then
-    _OUT+="--- lessons.md ---
-$(head -30 "$PROJECT_DIR/tasks/lessons.md")
-"
-  fi
-elif [ -f "$PROJECT_DIR/tasks/lessons.md" ]; then
-  _OUT+="--- lessons.md ---
-$(head -30 "$PROJECT_DIR/tasks/lessons.md")
-"
-fi
-
-_OUT+="
-Context depth on demand: uv run mir context pull \"<query>\" (--history for archived/expired)
-=== END SESSION CONTEXT ===
-"
-
-
-# 10240-byte hard guard: truncate with marker if needed.
-# A1 fix: measure bytes (UTF-8) not characters. ${#var} counts chars which
-# underestimates multibyte (e.g. Korean) content in a UTF-8 locale.
-_BYTE_LIMIT=10240
-_MARKER="
-[context truncated at ${_BYTE_LIMIT} bytes — use uv run mir context pull for details]
-"
-_BYTE_LEN=$(printf '%s' "$_OUT" | wc -c | tr -d ' \t')
-if [ "$_BYTE_LEN" -gt "$_BYTE_LIMIT" ]; then
-  # Marker byte length (measured via wc -c, same as _BYTE_LEN above).
-  _MARKER_LEN=$(printf '%s' "$_MARKER" | wc -c | tr -d ' \t')
-  _CUT_AT=$(( _BYTE_LIMIT - _MARKER_LEN ))
-  # Slice by bytes via python3 — bash ${var:0:N} slices chars, not bytes.
-  _OUT=$(printf '%s' "$_OUT" | python3 -c "
+  echo "--- plan.md ---"
+  python3 -c "
 import sys
-data = sys.stdin.buffer.read()
-cut = data[:$_CUT_AT].decode('utf-8', errors='ignore')
-sys.stdout.write(cut)
-")
-  _OUT="${_OUT}${_MARKER}"
+data = open('$PROJECT_DIR/tasks/plan.md', 'rb').read(1400)
+text = data[:1200].decode('utf-8', errors='ignore')
+sys.stdout.write(text)
+" 2>/dev/null
+  echo ""
 fi
 
-printf '%s' "$_OUT"
+if [ -f "$PROJECT_DIR/tasks/intent.json" ]; then
+  _INTENT_OUT=$(python3 -c "
+import json, sys
+try:
+    d = json.load(open('$PROJECT_DIR/tasks/intent.json'))
+    for k in ('goal_type', 'scope', 'priority', 'goal', 'updated'):
+        v = d.get(k, '')
+        if v:
+            print(f'{k}: {v}')
+except Exception:
+    pass
+" 2>/dev/null)
+  if [ -n "$_INTENT_OUT" ]; then
+    echo "--- intent.json ---"
+    echo "$_INTENT_OUT"
+    if [ -n "$_INTENT_CONFLICT_ADVISORY" ]; then
+      echo "intent_conflict_advisory: $_INTENT_CONFLICT_ADVISORY"
+    fi
+    echo ""
+  fi
+fi
+
+echo ""
 
 # mir:adr53:context-core:begin
 # ADR-53 D1 (per-family): DB-live active lessons head + context-pull hint.
@@ -189,15 +143,21 @@ PYEOF
   fi
 elif [ -f "$_MIR_PD/tasks/lessons.md" ]; then
   echo ""
-  echo "--- lessons.md (fallback: memory.db absent) ---"
+  echo "--- lessons.md (fallback: memory.db unavailable) ---"
   head -30 "$_MIR_PD/tasks/lessons.md"
 fi
 echo ""
 echo "Context depth on demand: uv run mir context pull \"<query>\" (--history for archived/expired)"
 # mir:adr53:context-core:end
 
+# ADR-55 doc-size advisory guard (review major docs)
+if command -v uv >/dev/null 2>&1 && [ -f "$CLAUDE_PROJECT_DIR/config/doc-size-guard.json" ]; then
+  _DG=$(cd "$CLAUDE_PROJECT_DIR" && uv run mir doc-guard --config config/doc-size-guard.json --project-dir "$CLAUDE_PROJECT_DIR" 2>/dev/null) || true
+  [ -n "$_DG" ] && echo "$_DG"
+fi
+
 # mir:profile:enforcement:begin
-# Generated by Mir Profile Compiler (tools/profile_compiler). DO NOT EDIT MANUALLY.
+# Generated by your-harness Profile Compiler (tools/profile_compiler). DO NOT EDIT MANUALLY.
 # Source: .mir/repo-profile.toml — edit profile and recompile to update this block.
 # Role policy reminder injected into session-start for family: your-harness
 MIR_CODEX_DEFAULT_ENABLED="true"
@@ -205,13 +165,27 @@ echo "[mir] role policy active: main_agent_parity=claude_codex delegated_backend
 if [ -n "${MIR_CODEX_SESSION_ID:-}" ]; then
     echo "[mir] active codex session: $MIR_CODEX_SESSION_ID modes=$MIR_CODEX_ALLOWED_MODES" >&2
 elif [ "$MIR_CODEX_DEFAULT_ENABLED" = "true" ]; then
-    echo "[mir] no active codex session — code edits in code_paths will be blocked by pre-tool-use hook" >&2
+    echo "[mir] no active codex session — delegated backend-capable execution in code_paths will be blocked by pre-tool-use hook" >&2
 fi
 
 # mir:profile:enforcement:end
 
-# doc-size advisory guard (budgets in config/doc-size-guard.json; warns when a tracked doc exceeds its line budget)
-if command -v uv >/dev/null 2>&1 && [ -f "$CLAUDE_PROJECT_DIR/config/doc-size-guard.json" ]; then
-  _DG=$(cd "$CLAUDE_PROJECT_DIR" && uv run mir doc-guard --config config/doc-size-guard.json --project-dir "$CLAUDE_PROJECT_DIR" 2>/dev/null) || true
-  [ -n "$_DG" ] && echo "$_DG"
-fi
+}
+
+# Snapshot global Claude/Codex config files into a local git history repo.
+# Runs silently; always exits 0; must not add to injected context bytes.
+timeout 10 bash "${CLAUDE_PROJECT_DIR:-.}/scripts/backup_global_claude_config.sh" >/dev/null 2>&1 || true
+
+# mir:f3:stdout-cap:begin
+# token-efficiency F3 (2026-06-10): template-parity 10,240B stdout cap (UTF-8 safe).
+_mir_session_body "$@" | python3 -c '
+import sys
+data = sys.stdin.buffer.read()
+limit = 10240
+if len(data) <= limit:
+    sys.stdout.buffer.write(data)
+else:
+    cut = data[: limit - 64].decode("utf-8", errors="ignore")
+    sys.stdout.write(cut + "\n[mir] session-start context truncated at 10KB (F3 cap)\n")
+'
+# mir:f3:stdout-cap:end

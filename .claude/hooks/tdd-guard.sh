@@ -1,5 +1,7 @@
 #!/bin/bash
 # TDD guard helper: block implementation edits when no composite TDD plan is present.
+# tier: block — TDD obligation enforcement (R27-T02 / Choice 5=A)
+_MIR_HOOK_TIER="block"
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 TARGET_PATH="${1:-}"

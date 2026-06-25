@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Composite TDD ledger validator for hook enforcement."""
+"""Composite TDD ledger validator for hook enforcement.
+
+tier: block — TDD obligation enforcement (R27-T02 / Choice 5=A).
+Python hooks use Tier enum from src.mir.core.engine.hook_chain.
+Shell callers: _MIR_HOOK_TIER=block is documented here for cross-reference.
+"""
 from __future__ import annotations
 
 import json
