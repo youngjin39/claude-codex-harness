@@ -1,221 +1,178 @@
 ---
 status: design-v1
 date: 2026-05-23
-scope: your-harness → template sanitize glossary + substitution patterns + exempt file list
-audience: your-harness Role B (Template Maintainer) + R11 sanitize_for_template.py developer
-priority: R10-R1 newly established (resolves Slice 2 BLOCKING #4)
+scope: Mir → template sanitize glossary + substitution patterns + exempt file list
+audience: Mir Role B (Template Maintainer) + R11 sanitize_for_template.py developer
+priority: R10-R1 added (resolves Slice 2 BLOCKING #4)
 ---
 
-# Sanitize Glossary (your-harness → Template)
+# Sanitize Glossary (Mir → Template)
 
-> **Purpose**: Korean→English glossary + family-specific→generic substitution table + exempt file list for use by `scripts/sanitize_for_template.py` (R11). R10-R1 newly established.
+> **Purpose**: Korean→English glossary + family-specific→generic substitution table + exempt file list consumed by `scripts/sanitize_for_template.py` (R11). The authoritative Korean→English mapping is the `KOREAN_GLOSSARY` dict in code; this document is the human-readable, English-only spec. R10-R1 added.
 
 ## 0.5 Design Goals (R10-R1 anchor)
 
 **3-axis contribution**:
-- **Axis I**: Block Korean / family-specific expressions in your-harness from leaking to template
-- **Axis II**: Guarantee template "applied state" is English-only + generic
-- **Axis III**: Zero Korean dependency risk when fleet adopts
+- **Axis I**: Block Mir-self Korean / family-specific expressions from leaking into the template
+- **Axis II**: Guarantee the template "applied state" is English-only + generic
+- **Axis III**: Zero Korean dependency when the fleet adopts the template
 
 **Inter-phase contract**:
-- **Input** (consumed): all changes from your-harness land (commit hash)
-- **Output** (produced): sanitized text → phase-10 stage 2 sync can proceed
+- **Input** (consumed): all Mir-self landed changes (commit hash)
+- **Output** (produced): sanitized text → phase-10 stage 2 sync may proceed
 
-## 1. Sanitize 3 Layers
+## 1. The 3 Sanitize Layers
 
 | Layer | Target | Processing |
 |---|---|---|
 | **L1 Detection** | all user-facing strings (.md, comments in .sh/.py) | Hangul detection + family-specific term detection |
-| **L2 Translation** | detected Korean strings | auto-substitute based on §2 glossary below; unmapped items go to user review |
-| **L3 Generalization** | detected family-specific expressions | generic substitution based on §3 substitution table below |
+| **L2 Translation** | detected Korean strings | auto-substitute via the §2 glossary; unmapped terms go to user review |
+| **L3 Generalization** | detected family-specific expressions | generic substitution via the §3 table |
 
 ## 2. Korean → English Glossary (mandatory)
 
-Lookup table for Korean occurrences in user-facing strings (markdown body, code comments).
+The authoritative Korean→English mapping is the `KOREAN_GLOSSARY` dict in `scripts/sanitize_for_template.py` (~42 entries). It is applied to user-facing strings (markdown body, code comments). To keep this public-facing spec English-only (Axis II), the Korean source keys are kept ONLY in the code dict and are not duplicated here. The English outputs it produces are:
 
-| Korean | English | Context |
-|---|---|---|
-| 하네스 | harness | core term |
-| 하네스 엔지니어링 | harness engineering | core term |
-| 신설 | added (newly) | section heading / changelog |
-| 정합 | aligned / compatible | concept |
-| 확장 | extended | changelog |
-| 갱신 | updated | changelog |
-| 적용 | applied / applies | concept |
-| 미land | not landed | status |
-| land 됨 | landed | status |
-| 부재 | absent / missing | status |
-| 결함 | flaw / defect | audit |
-| 누락 | omission / missing | audit |
-| 결정 | decision | concept |
-| 의무 | mandatory | rule |
-| 권고 | recommended | rule |
-| 사용자 | user | role |
-| 사용자 명시 | user-explicit | rule |
-| 진실원천 | source of truth (SoT) | concept |
-| 강제 | enforce / enforcement | rule |
-| 강제 X | not enforced (opt-in only) | rule |
-| 추천 | recommend / recommendation | concept |
-| 자율 | autonomous | concept |
-| 자율 X | not autonomous | concept |
-| 검증 | verification | concept |
-| 검토 | review | concept |
-| 절차 | procedure | concept |
-| 진행 | proceed / in progress | status |
-| 완료 | complete | status |
-| 부족 | insufficient | audit |
-| 충돌 | conflict | concept |
-| 해소 | resolved | audit |
-| 모순 | contradiction | audit |
-| 정의 | definition | concept |
-| 시점 | timing / point in time | concept |
-| 산출물 | artifact | concept |
-| 흐름 | flow | concept |
-| 위반 | violation | rule |
-| 차단 | block | rule |
-| 면제 | exempt / exemption | rule |
-| 봉인 | sealed | family policy |
-| 통보 | notify / notification | concept |
-| 본 | this (in "this doc", "this phase") | document reference |
+`harness`, `harness engineering`, `added (newly)`, `aligned / compatible`, `extended`, `updated`, `applied / applies`, `not landed`, `landed`, `absent / missing`, `flaw / defect`, `omission / missing`, `decision`, `mandatory`, `recommended`, `user`, `user-explicit`, `source of truth (SoT)`, `enforce / enforcement`, `not enforced (opt-in only)`, `recommend / recommendation`, `autonomous`, `not autonomous`, `verification`, `review`, `procedure`, `proceed / in progress`, `complete`, `insufficient`, `conflict`, `resolved`, `contradiction`, `definition`, `timing / point in time`, `artifact`, `flow`, `violation`, `block`, `exempt / exemption`, `sealed`, `notify / notification`, `this (document reference)`.
 
-### 2-1. Handling Unmapped Terms
-When unmapped Korean is detected:
-1. sanitize_for_template.py enters `--review` mode
-2. User explicit review — decide mapping then add to this glossary
-3. Glossary updates do not require an ADR (table maintenance only)
+### 2-1. Unmapped Handling
+When an unmapped Korean term is detected:
+1. `sanitize_for_template.py` enters `--review` mode
+2. user-explicit review — decide the mapping, then add it to the code `KOREAN_GLOSSARY`
+3. the glossary update needs no ADR (table maintenance)
 
-### 2-2. Korean Text Exempt from Sanitize
-Korean in the following areas is preserved (sanitize NOT applied):
-- `archive/` (historical, preserved)
-- `참고 문서/` (raw input, preserved)
-- Korean slugs in `memory/` (reflexive reference)
-- "Korean citation" sections in ADRs
-- User quotes (e.g., "user-explicit (2026-05-23): ...")
+### 2-2. Exempt Korean
+Korean in these areas is preserved (sanitize NOT applied):
+- `archive/` (historical record)
+- the reference-docs directory (raw input; Mir-self only)
+- Korean slugs under `memory/` (reflexive reference)
+- the "Korean quotation" section of an ADR
+- user quotes (e.g. a dated user-explicit quote)
 
 ## 3. Family-Specific → Generic Substitution
 
-Auto-substitute family-specific terms from your-harness with generic expressions for the template.
+Auto-substitute Mir-self family-specific terms with the template's generic expressions.
 
 ### 3-1. Identity Substitution
-| your-harness pattern | Template generic | Note |
+| Mir-self pattern | Template generic | Note |
 |---|---|---|
-| `Mir-harness`, `mir-harness` | `your-harness` | single name → generic name |
-| `Mir-self` | `your-harness-self` | preserve self-reference |
+| `Mir-harness`, `mir-harness` | `your-harness` | single name → generic |
+| `Mir-self` | `your-harness-self` | self-reference |
 | `Mir-as-agent` | `your-harness-agent` | agent reference |
-| `your harness` (Korean) | `your harness` | Korean → English + generic |
-| `Mir` (standalone, noun) | `your-harness` | careful — overlap risk |
-| `youngjin39` (user GitHub) | `<your-org>` | remove personal identity |
-| `<personal-name>` | (removed) | personal identity |
-| `<personal-org>` | (removed) | personal identity |
-| `<personal-location>` | (removed) | personal identity |
+| Mir harness (Korean display form) | `your harness` | Korean → English + generic |
+| `Mir` (standalone noun) | `your-harness` | careful — overlap risk |
+| `youngjin39` (user GitHub) | `<template-owner>` | remove personal identity |
+| `MaJu` | (removed) | personal identity |
+| `LG Electronics` | (removed) | personal identity |
+| `Seoul` | (removed) | personal identity |
 
 ### 3-2. Path Substitution
-| your-harness path | Template generic |
+| Mir-self path | Template generic |
 |---|---|
-| `<your-harness-path>/` | `<your-harness-path>/` |
-| `/Users/<real-username>/` (any literal home path) | `~/` or `<user-home>/` |
-| `<this-repo>` | `<this-repo>` |
-| `~/.claude/` | `~/.claude/` |
+| the Mir-self project path | `<your-harness-path>/` |
+| the user home directory | `~/` or `<user-home>/` |
+| the public template repo path | `<this-repo>` |
+| the Mir-self agent-home path | `~/.claude/` |
 
 ### 3-3. Family Reference Substitution
-When your-harness explicitly references other families (used as examples only):
-- All active family slugs (example-notes, example-game, example-brand, example-app, example-personal, example-video, example-content, example-story, example-stock, example-learning, example-infra, example-service, example-harness, memory-keeper)
-- In template: replace all with `<example-family>` or separate example family names (`example-product`, `example-code-app`, `example-meta`, `example-hybrid`, `example-content`)
-- Generalize all references outside user quotes / examples
+Mir-self references to other families (used as examples only):
+- the 14 family slugs (grownote / hermes / home-hub / memory-keeper / minesweeper / mir-harness / musinsa-brand / my-life / quietleaf / shortmoviedirector / stockdirector / storydirector / write-score / claude-codex-harness)
+- in the template: all replaced with `<example-family>` or distinct example family names (`example-product`, `example-code-app`, `example-meta`, `example-hybrid`, `example-content`)
+- generalize every reference outside user quotes / examples
 
 ### 3-4. Discord Channel Substitution
-| your-harness pattern | Template generic |
+| Mir-self pattern | Template generic |
 |---|---|
-| `chat_id="<your-discord-channel-id>"` | `<your-discord-channel-id>` |
-| `user="<example-user>"` | `<example-user>` |
-| Private channel IDs | (removed) |
+| a literal `chat_id="..."` | `<your-discord-channel-id>` |
+| a literal `user="..."` | `<example-user>` |
+| a literal channel id | (removed) |
 
 ## 4. Exempt Files List
 
-The following files are exempt from sanitize (preserved):
+These files are NOT sanitized (preserved):
 
 | File | Reason |
 |---|---|
-| `LICENSE` | Legal obligation, do not modify |
-| `archive/**/*` | Historical record, preserved |
-| `참고 문서/**/*` | Raw input, preserved |
-| `memory/MEMORY.md` | (excluded, not committed to template) |
-| `memory/**/*.md` | (excluded, not committed to template) |
-| `config/repos/*.json` (all families) | (excluded, not committed to template) |
-| `config/fleet-harness-state.json` | (excluded, your-harness-side state) |
-| `config/fleet-drift-log/**/*` | (excluded, your-harness-side log) |
-| `tasks/*.json` (current progress ledger) | (excluded) |
+| `LICENSE` | legal, do not modify |
+| `archive/**/*` | historical record |
+| the reference-docs directory (`**/*`) | raw input |
+| `memory/MEMORY.md` | excluded — not committed to the template |
+| `memory/**/*.md` | excluded — not committed to the template |
+| `config/repos/*.json` (all families) | excluded — not committed to the template |
+| `config/fleet-harness-state.json` | excluded — Mir-side state |
+| `config/fleet-drift-log/**/*` | excluded — Mir-side log |
+| `tasks/*.json` (active ledger) | excluded |
 | `.git/`, `.venv/`, `node_modules/`, `__pycache__/` | tooling cache |
 | `.DS_Store` | system file |
 
 ## 5. Test Harness (R11)
 
-`tests/test_sanitize.py` (template repo side):
+`tests/test_sanitize.py` (template-repo side):
 ```python
 def test_no_korean_in_template():
-    # run test_no_korean_in_user_facing.py from ci.md §3-4
+    # runs the no-Korean-in-user-facing check from ci.md §3-4
 
-def test_no_private_paths():
-    # verify zero occurrences of private harness path patterns
+def test_no_mir_self_paths():
+    # asserts 0 occurrences of the Mir-self absolute path pattern
 
 def test_no_personal_identity():
-    # verify zero occurrences of personal identity strings
+    # asserts 0 occurrences of "youngjin39", "MaJu", "LG Electronics", "Seoul"
 
 def test_no_family_specific_names():
-    # verify zero private family name references (except example/quote areas)
+    # asserts 0 family-name references (except example / quote regions)
 ```
 
 `scripts/sanitize_for_template.py` `--dry-run` mode:
 - Korean detection report
-- Unmapped term list (review queue)
-- Substitution diff preview
-- Exempt file skip log
+- unmapped term list (review queue)
+- substitution diff preview
+- exempt file skip log
 
 ## 6. Sanitize Procedure (aligned with [phase-10 §3-3](../../phase-10-rollout-pipeline.md))
 
 ```bash
-# 1. diff (your-harness → template changes)
+# 1. diff (Mir-self → template changes)
 python scripts/verify_codex_sync.py --diff
 
-# 2. sanitize dry-run (verify changes)
-python scripts/sanitize_for_template.py --dry-run --target <this-repo>
+# 2. sanitize dry-run (validate changes)
+python scripts/sanitize_for_template.py --dry-run --target <template-repo-path>
 
 # 3. user review (decide unmapped terms)
-# Discord or manual
+# via Discord or manual
 
 # 4. sanitize apply
-python scripts/sanitize_for_template.py --apply --target <this-repo>
+python scripts/sanitize_for_template.py --apply --target ...
 
-# 5. verify test_no_korean / test_no_private_paths pass
-cd <this-repo> && python tests/test_sanitize.py
+# 5. verify test_no_korean / test_no_mir_self_paths pass
+cd <template-repo-path> && python tests/test_sanitize.py
 ```
 
 ## 7. Glossary Maintenance
 
-Updating §2/§3 tables in this doc:
-- New Korean term appears → add to §2 (user explicit review)
-- New family / path appears → add to §3
-- Glossary updates do not require an ADR — this doc PR only
+Updating the §2/§3 tables of this doc:
+- new Korean term appears → add to the code `KOREAN_GLOSSARY` (user-explicit review)
+- new family / path appears → add to §3
+- the glossary update needs no ADR — doc PR only
 
-## 8. your-harness Application Status (2026-05-23)
+## 8. Mir Adoption State (2026-05-23)
 
-| Item | Status |
+| Item | State |
 |---|---|
-| This glossary | **this R10-R1 land** |
-| `scripts/sanitize_for_template.py` | **not yet** (R11 code) |
-| `tests/test_sanitize.py` | **partially landed** (some parts from R8 land, R11 reinforcement pending) |
-| Dry-run mode | **not yet** (R11) |
+| this glossary | **R10-R1 landed** |
+| `scripts/sanitize_for_template.py` | landed (R11 code) |
+| `tests/test_sanitize.py` | partially landed (R8 partial, R11 reinforced) |
+| Dry-run mode | landed (R11) |
 
 ## 9. Exit Criterion
 
 1. Korean glossary ≥40 entries ✓
 2. Family-specific substitution ≥10 patterns ✓
 3. Exempt list ≥10 entries ✓
-4. Test harness spec (R11 specified) ✓
+4. Test harness spec (R11) ✓
 5. Sanitize procedure (5-step) ✓
 6. Glossary maintenance procedure ✓
-7. User review passed
+7. user review passed
 
-## 10. Next Steps
+## 10. Next Step
 
-R11 — `scripts/sanitize_for_template.py` code land + glossary application + dry-run mode.
+R11 — `scripts/sanitize_for_template.py` code landed + glossary applied + dry-run mode.

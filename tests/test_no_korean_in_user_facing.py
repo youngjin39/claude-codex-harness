@@ -39,6 +39,10 @@ def test_no_korean_in_template():
             content = path.read_text(encoding="utf-8", errors="ignore")
         except Exception:
             continue
+        # Strip fenced code blocks before the Hangul check: code examples may
+        # contain an intentional Hangul-range regex literal (the detector pattern
+        # itself); only prose Korean is a real leak.
+        content = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
         matches = HANGUL.findall(content)
         if matches:
             violations.append((str(path), matches[:5]))
