@@ -1,0 +1,20 @@
+# Example-harness module manifest — flutter-app-pack
+name = "flutter-app-pack"
+suited_repo_type = "flutter_se_product"
+opt_in = true
+summary = "Flutter app development harness: build recovery, performance, security, testing, and Hive local-storage skills."
+
+# Skills overlaid onto the common base under .claude/skills/
+provides = [
+  "skills:flutter-build",
+  "skills:flutter-perf",
+  "skills:flutter-security",
+  "skills:flutter-test",
+  "skills:flutter-hive",
+]
+
+# No dependencies beyond the common base.
+requires = []
+
+# Sanitized origin placeholder — real family names are never published.
+source_families = ["<example-family>"]

@@ -30,7 +30,7 @@ entries appear there as each module is extracted and sanitized.
 
 | module | suited repo-type | summary | status |
 |---|---|---|---|
-| flutter-app-pack | flutter_se_product | Flutter app build / perf / security / test / UI harness bundle | planned |
+| flutter-app-pack | flutter_se_product | Flutter build / perf / security / test + Hive local-storage skills | **listed** |
 | ops-self-evolution | ops_platform | Self-evolution + execution-governance ops harness | planned |
 | market-strategy | product_market | Market-research / positioning / GTM strategy skills | planned |
 | publishing-pipeline | content_pipeline | Compile → publish → social-draft content pipeline | planned |

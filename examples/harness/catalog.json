@@ -1,5 +1,23 @@
 {
   "$schema": "./catalog.schema.json",
   "version": 1,
-  "modules": []
+  "modules": [
+    {
+      "name": "flutter-app-pack",
+      "suited_repo_type": "flutter_se_product",
+      "summary": "Flutter app development harness: build recovery, performance, security, testing, and Hive local-storage skills.",
+      "harness_dir": "flutter-app-pack/harness/",
+      "provides": [
+        "skills:flutter-build",
+        "skills:flutter-perf",
+        "skills:flutter-security",
+        "skills:flutter-test",
+        "skills:flutter-hive"
+      ],
+      "source_families": [
+        "<example-family>"
+      ],
+      "opt_in": true
+    }
+  ]
 }
