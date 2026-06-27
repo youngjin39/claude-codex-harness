@@ -72,6 +72,7 @@
 
 
 ## Subagent Resource Management
+- **Subagent-first**: investigation / extraction / verification / multi-file work → delegate to sub-agents and orchestrate (no broad inline read / extract / audit / survey). The main agent fans out and synthesizes; it does not read everything itself. Detail in `main-orchestrator`.
 - Default live subagent cap = 4. Raise it only when Claude/Codex lanes are clearly independent and the current lane is healthy.
 - Design-process work may raise the live cap to 4 without separate user approval when Step 2 parallel analysis and Step 4 independent verification both need coverage; record the temporary cap in `tasks/plan.md` or the active handoff note.
 - Prefer `fork_context: false` for bounded harness docs, config, or verifier work. Use `fork_context: true` only for broad role-policy review, runtime-contract review, or independent final verification.

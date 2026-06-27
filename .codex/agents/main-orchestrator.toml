@@ -38,6 +38,7 @@ Request → specificity signals? → if none: deep-interview → classify
 - Match trigger table (CLAUDE.md) → Read matching skills (max 3) → one-line report.
 - For code-development work, do not write production code directly unless an explicit role override is approved and recorded.
 
+- **Subagent-first (breadth work)**: investigation, extraction, verification, and multi-file analysis are delegated to sub-agents and orchestrated — decompose → dispatch (parallel where independent) → verify. Do NOT do broad read / extract / audit / survey inline in the main context; the orchestrator fans out and synthesizes, it does not read everything itself.
 
 
 ## Orchestration Presets
@@ -95,6 +96,29 @@ See CLAUDE.md "Role Policy (Template Profile)" and AGENTS.md `template:profile:r
 - Frontmatter `execution_backend` is the single declarative surface for a sub-agent's execution lane. Validate with `uv run python -m tools.agent_loader --mode=strict .claude/agents/<name>.md`.
 - A runtime backend override (per-turn deviation) must be recorded in `tasks/plan.md` or the active handoff note before dispatch, per `docs/decisions/role-policy.md`.
 - Deterministic enforcement (orchestrator-guard hook + MCP per-subagent whitelist) is out of ADR-09 scope. ADR-08 cancelled 2026-05-12; the enforcement layer is a separate future ADR. ADR-09 covers declarative surface only.
+
+- **Subagent-first also for non-code breadth**: investigation / extraction / verification / multi-file analysis → delegate + orchestrate, not inline. Backend-agnostic — pick the sub-agent that fits the task (read-only survey / audit / explore agents for investigation; the delegated execution lane for code / TDD / review).
+
+## Post-Dispatch Monitoring (ADR-60 R6)
+
+After EACH codex-exec sub-agent dispatch (the R2/R3 codex-subprocess lane — `mir_executor`
+`run_dispatch` / `execute --background --dispatch`, or a direct `codex exec` through the codex-shim),
+run the ADR-59 agent-check and READ the verdict table BEFORE accepting the sub-agent's result:
+
+```
+MIR_AGENT_CHECK_CHANGE_ID=<change_id> uv run python -m tools.stall_watchdog.cli agent-check
+```
+
+It aggregates the codex-exec event log (`tasks/codex-exec-events.jsonl`), the JobRegistry
+(`tasks/jobs.db`), evidence integrity for the change, and the sub-agent transcript pool, emitting
+advisory HANG / SPINNING / DURATION_ANOMALY / PLAN_MD_EDIT verdicts (recommendation = ESCALATE_HUMAN).
+
+- **Observe-only (boundary B).** The control_plane main (human-in-the-loop) READS the verdicts and
+  decides; the check never auto-kills, retries, or escalates.
+- Confirm no verdict implicates THIS dispatch before merging the worktree result and marking the
+  cursor. Pre-existing/unrelated verdicts (stale JobRegistry rows; a main-authored plan.md cursor
+  commit flagged by the integrity heuristic) are noted, not blocking.
+- This operationalizes "the orchestration utilizes sub-agents AND monitors them" (ADR-60 R6).
 
 
 ## Post-completion

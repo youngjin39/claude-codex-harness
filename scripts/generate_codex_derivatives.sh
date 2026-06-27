@@ -269,6 +269,7 @@ emit_agent_sections_for_codex() {
         "## Active Agent Resolution (pre-dispatch)"
         "## Specialist Scope-Pattern Routing (ADR-17 §S2 P17-B)"
         "## Sub-agent dispatch policy"
+        "## Post-Dispatch Monitoring (ADR-60 R6)"
         "## Post-completion"
         "## Feedback → Learning"
         "## Reporting"
