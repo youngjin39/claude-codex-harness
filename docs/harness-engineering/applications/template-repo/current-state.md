@@ -1,10 +1,10 @@
 ---
 status: snapshot-live
-date: 2026-05-25
+date: 2026-06-27
 scope: template-harness physical state measured after baseline raise
 audience: your-harness Role B (Template Maintainer) + user
-template_commit: abb202a
-template_version: 0.4.0
+template_commit: 235a18d
+template_version: 0.5.0
 verifier_overall: pass
 verifier_major: 0
 verifier_minor: 0
